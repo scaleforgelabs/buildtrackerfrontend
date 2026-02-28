@@ -31,6 +31,7 @@ const navItems = [
   { label: "Reports", icon: BarChart3, link: "/reports" },
   { label: "Activity Logs", icon: LayoutDashboard, link: "/activity-logs" },
   { label: "Notifications", icon: Bell, link: "/notifications" },
+  { label: "My tasks", icon: Bell, link: "/my-tasks" },
 ];
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);

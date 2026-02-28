@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DndContext,
   closestCorners,
@@ -27,8 +27,9 @@ function cn(...classes: (string | undefined | false)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
-import { Task, INITIAL_TASKS, TaskStatus } from "@/app/constants/tasks";
+import { Task, TaskStatus } from "@/app/constants/tasks";
 import { TaskCard } from "../TaskCard";
+import { useTaskStore } from "@/app/store/taskStore";
 
 // -------------------- Types --------------------
 type ColumnId = "pending" | "inProgress" | "completed";
@@ -40,20 +41,20 @@ const statusMapping: Record<ColumnId, TaskStatus> = {
 };
 
 const reverseStatusMapping: Record<TaskStatus, ColumnId> = {
-  "Pending": "pending",
+  Pending: "pending",
   "In Progress": "inProgress",
-  "Completed": "completed",
+  Completed: "completed",
 };
 
 // -------------------- Initial Data mapping --------------------
-const getInitialData = (): Record<ColumnId, Task[]> => {
+const getInitialData = (tasks: Task[]): Record<ColumnId, Task[]> => {
   const data: Record<ColumnId, Task[]> = {
     pending: [],
     inProgress: [],
     completed: [],
   };
 
-  INITIAL_TASKS.forEach((task) => {
+  tasks.forEach((task) => {
     const colId = reverseStatusMapping[task.status];
     data[colId].push(task);
   });
@@ -112,17 +113,16 @@ function KanbanColumn({
         <div className="flex items-center gap-2 font-bold text-foreground text-base">
           <Icon className="h-5 w-5 text-primary" />
           {title}
-          <span className="text-muted-foreground font-medium ml-1 text-sm">({items.length})</span>
+          <span className="text-muted-foreground font-medium ml-1 text-sm">
+            ({items.length})
+          </span>
         </div>
         <Button size="icon" variant="ghost" className="h-8 w-8 text-primary">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
 
-      <div
-        ref={setNodeRef}
-        className="flex-1 pr-1"
-      >
+      <div ref={setNodeRef} className="flex-1 pr-1">
         <SortableContext
           items={items.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
@@ -140,21 +140,27 @@ function KanbanColumn({
 
 // -------------------- Board --------------------
 export default function KanbanBoard() {
-  const [columns, setColumns] = useState(getInitialData());
+  const { tasks, updateTaskStatus } = useTaskStore();
+  const [columns, setColumns] = useState(getInitialData(tasks));
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Sync columns when tasks change from store
+  useEffect(() => {
+    setColumns(getInitialData(tasks));
+  }, [tasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
       },
-    })
+    }),
   );
 
   function findColumnByTicket(id: string): ColumnId | null {
     return (
       (Object.keys(columns) as ColumnId[]).find((col) =>
-        columns[col].some((t) => t.id === id)
+        columns[col].some((t) => t.id === id),
       ) ?? null
     );
   }
@@ -182,7 +188,7 @@ export default function KanbanBoard() {
 
     const sourceCol = findColumnByTicket(activeId);
     const targetCol = (Object.keys(columns) as ColumnId[]).includes(
-      overId as ColumnId
+      overId as ColumnId,
     )
       ? (overId as ColumnId)
       : findColumnByTicket(overId);
@@ -205,8 +211,9 @@ export default function KanbanBoard() {
       const index = sourceItems.findIndex((i) => i.id === activeId);
       const [moved] = sourceItems.splice(index, 1);
 
-      // Update task status when moving between columns
+      // Update task status in store and local columns
       const updatedTask = { ...moved, status: statusMapping[targetCol] };
+      updateTaskStatus(activeId, statusMapping[targetCol]);
 
       setColumns({
         ...columns,
@@ -228,7 +235,7 @@ export default function KanbanBoard() {
       <div className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto pb-4 md:pb-0 scrollbar-thin p-6 bg-muted">
         <KanbanColumn
           title="Pending"
-          icon={Loader2} 
+          icon={Loader2}
           columnId="pending"
           items={columns.pending}
         />
