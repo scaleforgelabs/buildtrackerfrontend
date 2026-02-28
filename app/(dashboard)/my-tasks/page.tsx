@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Trash2, MoreVertical, Plus, Calendar, Clock, ArrowUp, Upload } from "lucide-react";
+import { Trash2, MoreVertical, Plus, Calendar, Clock, ArrowUp, Upload, MoreHorizontal } from "lucide-react";
 import AddPersonalTaskModal from "@/app/components/modals/AddPersonalTaskModal";
 
 interface PersonalTask {
@@ -151,7 +151,7 @@ const MyTasksPage = () => {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className="flex items-center gap-4 rounded-xl bg-muted border border-border px-6 py-4 transition-all hover:shadow-sm"
+                  className="flex items-center gap-4 rounded-xl bg-muted  px-6 py-4 transition-all hover:shadow-sm"
                 >
                   {/* Checkbox */}
                   <input
@@ -187,8 +187,8 @@ const MyTasksPage = () => {
 
                   {/* Actions */}
                   <div className="flex items-center gap-3">
-                    <button className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-card-foreground">
-                      <MoreVertical className="h-5 w-5" />
+                    <button className="rounded-full p-2 text-muted-foreground transition-colors bg-background  hover:text-card-foreground">
+                      <MoreHorizontal className="h-5 w-5" />
                     </button>
                   </div>
                 </div>
