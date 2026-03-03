@@ -12,6 +12,7 @@ interface PricingCardProps {
     features: string[];
     isPopular?: boolean;
     buttonText?: string;
+    onGetStarted?: () => void;
 }
 
 export const PricingCard = ({
@@ -21,7 +22,8 @@ export const PricingCard = ({
     billingCycle,
     features,
     isPopular = false,
-    buttonText = "Get Started"
+    buttonText = "Get Started",
+    onGetStarted
 }: PricingCardProps) => {
     return (
         <div className={`relative flex flex-col p-8 rounded-[2rem] border-2 transition-all duration-300 h-full ${isPopular
@@ -46,6 +48,7 @@ export const PricingCard = ({
 
             <Button
                 variant={isPopular ? "default" : "default"}
+                onClick={onGetStarted}
                 className={`w-full h-12 rounded-xl font-bold mb-8 transition-all active:scale-95 ${isPopular
                     ? "bg-primary hover:bg-primary/90 shadow-md shadow-primary/20"
                     : "bg-primary/20 hover:bg-primary/30 text-primary border-none"

@@ -49,10 +49,10 @@ const ModulesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
       {/* Header */}
-      <div className="border-b border-[var(--border)]">
-        <div className="px-8 py-8">
+      <div className="">
+        <div className="">
           <h1 className="text-4xl font-bold text-[var(--card-foreground)]">
             Modules
           </h1>
@@ -63,7 +63,7 @@ const ModulesPage = () => {
       </div>
 
       {/* Modules Grid */}
-      <div className="px-8 py-8">
+      <div className="px-8 py-8 bg-background  h-full rounded-2xl">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {modules.map((module) => (
             <div

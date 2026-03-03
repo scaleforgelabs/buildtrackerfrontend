@@ -81,7 +81,7 @@ const integrations = [
 
 export default function IntegrationsPage() {
   return (
-    <div className="p-4 md:p-8 space-y-8 bg-muted/30 min-h-full">
+    <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-2">
         <div>
