@@ -3,7 +3,14 @@
 import React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { BarChart3, Users, Layout, CheckCircle2, PlaySquare, ChartColumn } from "lucide-react";
+import {
+  BarChart3,
+  Users,
+  Layout,
+  CheckCircle2,
+  PlaySquare,
+  ChartColumn,
+} from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Navbar } from "@/app/components/marketing/Navbar";
 import { Footer } from "@/app/components/marketing/Footer";
@@ -18,7 +25,7 @@ const HomePage = () => {
         {/* Hero Section */}
         <section className="relative pt-16 md:pt-24 pb-20 px-4 md:px-8 overflow-hidden pl-0 md:pl-20">
           <div className=" mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
-            <div className="w-full lg:w-1/2 text-left space-y-8">
+            <div className="w-full lg:w-1/2 text-left space-y-8 px-6">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
