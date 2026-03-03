@@ -20,6 +20,13 @@ import folderScreenshot from "@/public/images/folder-screenshot.png"
 import integration from "@/public/images/integration-screenshot.png"
 import analytics from "@/public/images/anaytics-screenshot.png"
 import task from "@/public/images/task-screenshot.png"
+import doc_icon from "@/public/images/doc_icon.svg"
+import docx_icon from "@/public/images/docx_icon.svg"
+import pdf_icon from "@/public/images/pdf_icon.svg"
+import ppt_icon from "@/public/images/ppt_icon.svg"
+import pptx_icon from "@/public/images/pptx_icon.svg"
+import xls_icon from "@/public/images/xls_icon.svg"
+// import xlsx_icon from "@/public/images/doc_icon.svg"
 
 
 
@@ -46,5 +53,11 @@ export const Images = {
   folderScreenshot,
   integration,
   analytics, 
-  task
+  task,
+  doc_icon,
+  docx_icon,
+  pdf_icon,
+  ppt_icon,
+  pptx_icon,
+  xls_icon,
 };
