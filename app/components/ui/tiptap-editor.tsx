@@ -39,10 +39,9 @@ const TiptapEditor = ({
             },
         },
         onUpdate: ({ editor }) => {
-            onChange(editor.getHTML())
+            onChange(editor.getText())
         },
         immediatelyRender: false,
-
     })
 
     if (!editor) {

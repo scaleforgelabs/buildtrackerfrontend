@@ -1,48 +1,55 @@
 "use client";
 
-import { X, UserPlus } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { CountrySelect } from "../../ui/CountrySelect";
 import FormField from "../../ui/FormField";
 import { Input } from "../../ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "../../ui/Select";
-import { Switch } from "../../ui/switch";
-import UploadFIle from "../../ui/UploadFIle";
+import api from "@/libs/api";
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
 
 interface AddNewFolderModalProps {
     open: boolean;
     onClose: () => void;
+    parentFolderId?: string;
+    onFolderCreated?: () => void;
 }
 
 export default function AddNewFolderModal({
     open,
     onClose,
+    parentFolderId,
+    onFolderCreated,
 }: AddNewFolderModalProps) {
-
+    const { currentWorkspace } = useWorkspace();
     const [name, setName] = useState("");
+    const [loading, setLoading] = useState(false);
 
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!currentWorkspace?.id || !name.trim()) return;
 
-        const formData = {
-            name,
-        };
+        try {
+            setLoading(true);
+            const payload: any = { name };
+            if (parentFolderId) {
+                payload.parent = parentFolderId;
+            }
 
-        console.log("Form submitted with data:", formData);
+            await api.post(
+                `/files/workspaces/${currentWorkspace.id}/folders/create/`,
+                payload
+            );
 
-        // You can add your API call here
-        // Example: await inviteMember(formData);
-
-        // Close modal after submission
-        onClose();
+            setName("");
+            onFolderCreated?.();
+            onClose();
+        } catch (error) {
+            console.error("Failed to create folder:", error);
+        } finally {
+            setLoading(false);
+        }
     };
+
     useEffect(() => {
         if (open) document.body.style.overflow = "hidden";
         else document.body.style.overflow = "auto";
@@ -63,19 +70,18 @@ export default function AddNewFolderModal({
 
             {/* Modal */}
             <div className="relative z-10 w-full max-w-xl rounded-2xl bg-card px-6 py-7 shadow-xl sm:px-8">
-
                 {/* Form */}
                 <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
-                    <p className="text-xl font-semibold">New Folder </p>
+                    <p className="text-xl font-semibold">New Folder</p>
                     {/* Title */}
                     <FormField label="">
-                       
                         <Input
                             type="text"
-                            placeholder=""
+                            placeholder="Folder name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </FormField>
 
@@ -84,16 +90,18 @@ export default function AddNewFolderModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-lg border border-input px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                            disabled={loading}
+                            className="rounded-lg border border-input px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
                         >
                             Cancel
                         </button>
 
                         <button
                             type="submit"
-                            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 shadow-sm"
+                            disabled={loading || !name.trim()}
+                            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 shadow-sm disabled:opacity-50"
                         >
-                            Create
+                            {loading ? "Creating..." : "Create"}
                         </button>
                     </div>
                 </form>

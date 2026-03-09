@@ -27,6 +27,10 @@ export const metadata: Metadata = {
 
 import QueryProvider from "./providers/QueryProvider";
 
+import { AuthProvider } from "@/libs/hooks/useAuth";
+
+import { Toaster } from 'sonner';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,7 +43,10 @@ export default function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="light">
           <QueryProvider>
-            {children}
+            <AuthProvider>
+              {children}
+              <Toaster position="top-right" richColors />
+            </AuthProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

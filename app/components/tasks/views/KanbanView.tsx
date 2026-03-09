@@ -22,48 +22,64 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { Button } from "@/app/components/ui/button";
 import { Plus, CheckCircle2, Loader2, Clock } from "lucide-react";
+import { TaskCard } from "../TaskCard";
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
+import { useRouter } from "next/navigation";
+import api from "@/libs/api";
 
 function cn(...classes: (string | undefined | false)[]): string {
   return classes.filter(Boolean).join(" ");
 }
 
-import { Task, TaskStatus } from "@/app/constants/tasks";
-import { TaskCard } from "../TaskCard";
-import { useTaskStore } from "@/app/store/taskStore";
+type ColumnId = "pending" | "in_progress" | "completed";
 
-// -------------------- Types --------------------
-type ColumnId = "pending" | "inProgress" | "completed";
+interface TaskData {
+  id: string;
+  ticket_number: number;
+  task_name: string;
+  status: string;
+  priority: string;
+  assigned_user: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  start_date: string;
+  end_date: string;
+  comments: any[];
+  attachments: any[];
+}
 
-const statusMapping: Record<ColumnId, TaskStatus> = {
-  pending: "Pending",
-  inProgress: "In Progress",
-  completed: "Completed",
+const statusMapping: Record<ColumnId, string> = {
+  pending: "pending",
+  in_progress: "in_progress",
+  completed: "completed",
 };
 
-const reverseStatusMapping: Record<TaskStatus, ColumnId> = {
-  Pending: "pending",
-  "In Progress": "inProgress",
-  Completed: "completed",
+const reverseStatusMapping: Record<string, ColumnId> = {
+  pending: "pending",
+  in_progress: "in_progress",
+  completed: "completed",
 };
 
-// -------------------- Initial Data mapping --------------------
-const getInitialData = (tasks: Task[]): Record<ColumnId, Task[]> => {
-  const data: Record<ColumnId, Task[]> = {
+const getInitialData = (tasks: TaskData[]): Record<ColumnId, TaskData[]> => {
+  const data: Record<ColumnId, TaskData[]> = {
     pending: [],
-    inProgress: [],
+    in_progress: [],
     completed: [],
   };
 
   tasks.forEach((task) => {
-    const colId = reverseStatusMapping[task.status];
+    const colId = reverseStatusMapping[task.status] || "pending";
     data[colId].push(task);
   });
 
   return data;
 };
 
-// -------------------- Sortable Card --------------------
-function SortableTicket({ ticket }: { ticket: Task }) {
+function SortableTicket({ ticket }: { ticket: TaskData }) {
+  const router = useRouter();
+  const { currentWorkspace } = useWorkspace();
   const {
     attributes,
     listeners,
@@ -87,12 +103,18 @@ function SortableTicket({ ticket }: { ticket: Task }) {
       {...listeners}
       className="cursor-grab active:cursor-grabbing"
     >
-      <TaskCard task={ticket} />
+      <TaskCard
+        task={ticket as any}
+        onClick={() => {
+          if (currentWorkspace?.id) {
+            router.push(`/${currentWorkspace.id}/tasks/${ticket.id}`);
+          }
+        }}
+      />
     </div>
   );
 }
 
-// -------------------- Column --------------------
 function KanbanColumn({
   title,
   icon: Icon,
@@ -100,10 +122,9 @@ function KanbanColumn({
   items,
 }: {
   title: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   icon: any;
   columnId: ColumnId;
-  items: Task[];
+  items: TaskData[];
 }) {
   const { setNodeRef } = useDroppable({ id: columnId });
 
@@ -138,16 +159,36 @@ function KanbanColumn({
   );
 }
 
-// -------------------- Board --------------------
 export default function KanbanBoard() {
-  const { tasks, updateTaskStatus } = useTaskStore();
-  const [columns, setColumns] = useState(getInitialData(tasks));
+  const { currentWorkspace } = useWorkspace();
+  const [columns, setColumns] = useState<Record<ColumnId, TaskData[]>>({
+    pending: [],
+    in_progress: [],
+    completed: [],
+  });
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Sync columns when tasks change from store
   useEffect(() => {
-    setColumns(getInitialData(tasks));
-  }, [tasks]);
+    if (!currentWorkspace?.id) return;
+
+    const fetchTasks = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`);
+        const tasks = response.data.results?.data || [];
+        setColumns(getInitialData(tasks));
+      } catch (error) {
+        console.error("Failed to fetch tasks:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, [currentWorkspace?.id]);
+
+
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -165,7 +206,7 @@ export default function KanbanBoard() {
     );
   }
 
-  function findTicketById(id: string): Task | undefined {
+  function findTicketById(id: string): TaskData | undefined {
     for (const col of Object.keys(columns) as ColumnId[]) {
       const ticket = columns[col].find((t) => t.id === id);
       if (ticket) return ticket;
@@ -177,7 +218,7 @@ export default function KanbanBoard() {
     setActiveId(event.active.id as string);
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
 
@@ -211,19 +252,36 @@ export default function KanbanBoard() {
       const index = sourceItems.findIndex((i) => i.id === activeId);
       const [moved] = sourceItems.splice(index, 1);
 
-      // Update task status in store and local columns
       const updatedTask = { ...moved, status: statusMapping[targetCol] };
-      updateTaskStatus(activeId, statusMapping[targetCol]);
 
+      // OPTIMISTIC UPDATE: Update UI immediately
       setColumns({
         ...columns,
         [sourceCol]: sourceItems,
         [targetCol]: [updatedTask, ...targetItems],
       });
+
+      try {
+        await api.put(
+          `/tasks/${currentWorkspace?.id}/tasks/${activeId}/status/`,
+          {
+            status: statusMapping[targetCol],
+            percent_complete: targetCol === 'completed' ? 100 : 0,
+          }
+        );
+      } catch (error) {
+        console.error("Failed to update task status:", error);
+        // REVERT: If API fails, put it back (simplified revert)
+        setColumns(columns);
+      }
     }
   }
 
   const activeTicket = activeId ? findTicketById(activeId) : null;
+
+  if (loading) {
+    return <div className="p-6 text-center text-muted-foreground">Loading tasks...</div>;
+  }
 
   return (
     <DndContext
@@ -242,8 +300,8 @@ export default function KanbanBoard() {
         <KanbanColumn
           title="In Progress"
           icon={Clock}
-          columnId="inProgress"
-          items={columns.inProgress}
+          columnId="in_progress"
+          items={columns.in_progress}
         />
         <KanbanColumn
           title="Completed"
@@ -255,7 +313,7 @@ export default function KanbanBoard() {
       <DragOverlay>
         {activeTicket ? (
           <div className="cursor-grabbing rotate-2 scale-105 transition-transform">
-            <TaskCard task={activeTicket} />
+            <TaskCard task={activeTicket as any} />
           </div>
         ) : null}
       </DragOverlay>

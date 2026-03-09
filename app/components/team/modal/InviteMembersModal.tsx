@@ -12,45 +12,77 @@ import {
     SelectTrigger,
     SelectValue,
 } from "../../ui/Select";
+import { workspacesService } from "@/libs/api/services";
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
 
 interface InviteMembersModalProps {
     open: boolean;
     onClose: () => void;
+    onInviteSent?: () => void;
 }
 
 export default function InviteMembersModal({
     open,
     onClose,
+    onInviteSent,
 }: InviteMembersModalProps) {
-
     const [email, setEmail] = useState("");
     const [countryCode, setCountryCode] = useState("+234");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [jobRole, setJobRole] = useState("");
-    const [role, setRole] = useState("member");
+    const [role, setRole] = useState("Member");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    
+    const { currentWorkspace } = useWorkspace();
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        const formData = {
-            email,
-            phone: phoneNumber ? `${countryCode}${phoneNumber}` : "",
-            jobRole,
-            status: "Available",
-            workspaceRole: role,
-        };
-
-        console.log("Form submitted with data:", formData);
-
-        // You can add your API call here
-        // Example: await inviteMember(formData);
-
-        // Close modal after submission
-        onClose();
+    const resetForm = () => {
+        setEmail("");
+        setPhoneNumber("");
+        setJobRole("");
+        setRole("Member");
+        setError("");
     };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!currentWorkspace?.id) {
+            setError("No workspace selected");
+            return;
+        }
+
+        setLoading(true);
+        setError("");
+
+        try {
+            const invitationData = {
+                email,
+                role: role as 'Admin' | 'Member',
+                phone: phoneNumber ? `${countryCode}${phoneNumber}` : undefined,
+                job_role: jobRole || undefined,
+            };
+
+            await workspacesService.sendInvitation(currentWorkspace.id, invitationData);
+            
+            resetForm();
+            onClose();
+            onInviteSent?.();
+        } catch (err: any) {
+            console.error('Failed to send invitation:', err);
+            setError(err.response?.data?.error || err.response?.data || 'Failed to send invitation');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        if (open) document.body.style.overflow = "hidden";
-        else document.body.style.overflow = "auto";
+        if (open) {
+            document.body.style.overflow = "hidden";
+            resetForm();
+        } else {
+            document.body.style.overflow = "auto";
+        }
         return () => {
             document.body.style.overflow = "auto";
         };
@@ -95,19 +127,21 @@ export default function InviteMembersModal({
 
                 {/* Form */}
                 <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+                    {error && (
+                        <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-600">
+                            {error}
+                        </div>
+                    )}
+                    
                     {/* Email */}
                     <FormField label="Email Address">
-                        {/* <input
-                            type="email"
-                            placeholder="Enter email address"
-                            className="input"
-                        /> */}
                         <Input
                             type="email"
                             placeholder="Enter email address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </FormField>
 
@@ -117,6 +151,7 @@ export default function InviteMembersModal({
                             <CountrySelect
                                 value={countryCode}
                                 onChange={setCountryCode}
+                                disabled={loading}
                             />
 
                             <input
@@ -126,23 +161,20 @@ export default function InviteMembersModal({
                                     setPhoneNumber(e.target.value.replace(/\D/g, ""))
                                 }
                                 placeholder="8012345678"
+                                disabled={loading}
                                 className="flex h-11 w-full rounded-r-lg border border-input bg-background px-3 py-2 text-sm ring-0 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 ring-0"
                             />
                         </div>
                     </FormField>
 
                     {/* Job Role */}
-                    <FormField label="Job Role">
-                        {/* <input
-                            type="text"
-                            placeholder="Product Management, Software Engineer e.t.c"
-                            className="input"
-                        /> */}
+                    <FormField label="Job Role (Optional)">
                         <Input
                             type="text"
                             placeholder="Product Management, Software Engineer e.t.c"
                             value={jobRole}
                             onChange={(e) => setJobRole(e.target.value)}
+                            disabled={loading}
                         />
                     </FormField>
 
@@ -161,14 +193,13 @@ export default function InviteMembersModal({
 
                     {/* Workspace Role */}
                     <FormField label="Workspace Role">
-                        <Select value={role} onValueChange={setRole}>
+                        <Select value={role} onValueChange={setRole} disabled={loading}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select Role" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="owner">Owner</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="member">Member</SelectItem>
+                                <SelectItem value="Admin">Admin</SelectItem>
+                                <SelectItem value="Member">Member</SelectItem>
                             </SelectContent>
                         </Select>
                     </FormField>
@@ -178,16 +209,18 @@ export default function InviteMembersModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-lg border border-input px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+                            disabled={loading}
+                            className="rounded-lg border border-input px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Cancel
                         </button>
 
                         <button
                             type="submit"
-                            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 shadow-sm"
+                            disabled={loading || !email}
+                            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Send Invite
+                            {loading ? 'Sending...' : 'Send Invite'}
                         </button>
                     </div>
                 </form>

@@ -21,9 +21,10 @@ interface Country {
 interface CountrySelectProps {
     value: string;
     onChange: (code: string) => void;
+    disabled?: boolean;
 }
 
-export function CountrySelect({ value, onChange }: CountrySelectProps) {
+export function CountrySelect({ value, onChange, disabled = false }: CountrySelectProps) {
     const [countries, setCountries] = useState<Country[]>([]);
     const [open, setOpen] = useState(false);
 
@@ -49,8 +50,9 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
         <div className="relative">
             <button
                 type="button"
-                onClick={() => setOpen(!open)}
-                className="flex h-11 items-center gap-2 rounded-l-lg border border-r-0 border-border bg-background px-3"
+                onClick={() => !disabled && setOpen(!open)}
+                disabled={disabled}
+                className="flex h-11 items-center gap-2 rounded-l-lg border border-r-0 border-border bg-background px-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {selected && (
                     <Image

@@ -12,7 +12,8 @@ interface PricingCardProps {
     features: string[];
     isPopular?: boolean;
     buttonText?: string;
-    onGetStarted?: () => void;
+    onSelectPlan?: () => void;
+    currency?: string;
 }
 
 export const PricingCard = ({
@@ -23,7 +24,8 @@ export const PricingCard = ({
     features,
     isPopular = false,
     buttonText = "Get Started",
-    onGetStarted
+    onSelectPlan,
+    currency = "₦"
 }: PricingCardProps) => {
     return (
         <div className={`relative flex flex-col p-8 rounded-[2rem] border-2 transition-all duration-300 h-full ${isPopular
@@ -42,17 +44,17 @@ export const PricingCard = ({
             </div>
 
             <div className="flex items-baseline mb-8">
-                <span className="text-4xl font-extrabold text-[#0D0D0D] dark:text-white">$ {price}</span>
+                <span className="text-4xl font-extrabold text-[#0D0D0D] dark:text-white">{currency}{price}</span>
                 <span className="text-muted-foreground font-semibold ml-1">/{billingCycle}</span>
             </div>
 
             <Button
                 variant={isPopular ? "default" : "default"}
-                onClick={onGetStarted}
                 className={`w-full h-12 rounded-xl font-bold mb-8 transition-all active:scale-95 ${isPopular
                     ? "bg-primary hover:bg-primary/90 shadow-md shadow-primary/20"
                     : "bg-primary/20 hover:bg-primary/30 text-primary border-none"
                     }`}
+                onClick={onSelectPlan}
             >
                 {buttonText}
             </Button>

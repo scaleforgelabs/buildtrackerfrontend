@@ -1,86 +1,160 @@
 "use client";
 
-import React, { useState } from "react";
-import { INITIAL_TASKS, Task, TaskStatus } from "@/app/constants/tasks";
+import React, { useState, useEffect } from "react";
 import { BoardTaskCard } from "../BoardTaskCard";
 import { Plus, CheckCircle2, Target, Scan } from "lucide-react";
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
+import { useRouter } from "next/navigation";
+import api from "@/libs/api";
 
-interface BoardColumnProps {
-    status: TaskStatus;
-    tasks: Task[];
-    icon: React.ElementType;
-    iconBg: string;
-    onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
+interface TaskData {
+  id: string;
+  ticket_number: number;
+  task_name: string;
+  status: string;
+  priority: string;
+  assigned_user: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  start_date: string;
+  end_date: string;
+  comments: any[];
+  attachments: any[];
 }
 
-const BoardColumn = ({ status, tasks, icon: Icon, iconBg, onStatusChange }: BoardColumnProps) => {
-    return (
-        <div className="flex flex-col rounded-2xl bg-muted/30 p-4 border border-border min-h-[500px] transition-colors">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                    <div className={`p-2 rounded-lg ${iconBg} shadow-sm border border-border`}>
-                        <Icon className="h-4 w-4 text-primary" />
-                    </div>
-                    <h2 className="text-base font-bold text-foreground">
-                        {status} <span className="text-muted-foreground font-medium ml-1">({tasks.length})</span>
-                    </h2>
-                </div>
-                <button className="h-7 w-7 rounded-full border border-primary flex items-center justify-center text-primary hover:bg-primary/5 transition-colors">
-                    <Plus className="h-4 w-4" />
-                </button>
-            </div>
+interface BoardColumnProps {
+  status: string;
+  tasks: TaskData[];
+  icon: React.ElementType;
+  iconBg: string;
+  onStatusChange: (taskId: string, newStatus: string) => void;
+  onTaskClick: (taskId: string) => void;
+}
 
-            {/* Task List */}
-            <div className="space-y-4">
-                {tasks.map((task) => (
-                    <BoardTaskCard key={task.id} task={task} onStatusChange={onStatusChange} />
-                ))}
-            </div>
+const BoardColumn = ({ status, tasks, icon: Icon, iconBg, onStatusChange, onTaskClick }: BoardColumnProps) => {
+  return (
+    <div className="flex flex-col rounded-2xl bg-muted/30 p-4 border border-border min-h-[500px] transition-colors">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <div className={`p-2 rounded-lg ${iconBg} shadow-sm border border-border`}>
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
+          <h2 className="text-base font-bold text-foreground">
+            {status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")} <span className="text-muted-foreground font-medium ml-1">({tasks.length})</span>
+          </h2>
         </div>
-    );
+        <button className="h-7 w-7 rounded-full border border-primary flex items-center justify-center text-primary hover:bg-primary/5 transition-colors">
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {tasks.map((task) => (
+          <BoardTaskCard
+            key={task.id}
+            task={task as any}
+            onStatusChange={onStatusChange}
+            onClick={() => onTaskClick(task.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
 };
 
 const BoardView = () => {
-    const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const { currentWorkspace } = useWorkspace();
+  const router = useRouter();
+  const [tasks, setTasks] = useState<TaskData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
-        setTasks(prevTasks =>
-            prevTasks.map(task =>
-                task.id === taskId ? { ...task, status: newStatus } : task
-            )
-        );
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+
+    const fetchTasks = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`);
+        setTasks(response.data.results?.data || []);
+      } catch (error) {
+        console.error("Failed to fetch tasks:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const pendingTasks = tasks.filter((t) => t.status === "Pending");
-    const inProgressTasks = tasks.filter((t) => t.status === "In Progress");
-    const completedTasks = tasks.filter((t) => t.status === "Completed");
+    fetchTasks();
+  }, [currentWorkspace?.id]);
 
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-1 p-6 ">
-            <BoardColumn
-                status="Pending"
-                tasks={pendingTasks}
-                icon={Scan}
-                iconBg="bg-blue-50 dark:bg-blue-950/20"
-                onStatusChange={handleStatusChange}
-            />
-            <BoardColumn
-                status="In Progress"
-                tasks={inProgressTasks}
-                icon={Target}
-                iconBg="bg-orange-50 dark:bg-orange-950/20"
-                onStatusChange={handleStatusChange}
-            />
-            <BoardColumn
-                status="Completed"
-                tasks={completedTasks}
-                icon={CheckCircle2}
-                iconBg="bg-accent dark:bg-accent/20"
-                onStatusChange={handleStatusChange}
-            />
-        </div>
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
+    const oldTasks = [...tasks];
+
+    // OPTIMISTIC UPDATE: Update UI instantly
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId ? { ...task, status: newStatus } : task
+      )
     );
+
+    try {
+      await api.put(
+        `/tasks/${currentWorkspace?.id}/tasks/${taskId}/status/`,
+        {
+          status: newStatus,
+          percent_complete: newStatus === 'completed' ? 100 : 0,
+        }
+      );
+    } catch (error) {
+      console.error("Failed to update task status:", error);
+      // REVERT: Fallback to old state if API fails
+      setTasks(oldTasks);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-6 text-center text-muted-foreground">Loading tasks...</div>;
+  }
+
+  const pendingTasks = tasks.filter((t) => t.status === "pending");
+  const inProgressTasks = tasks.filter((t) => t.status === "in_progress");
+  const completedTasks = tasks.filter((t) => t.status === "completed");
+
+  const handleTaskClick = (taskId: string) => {
+    if (currentWorkspace?.id) {
+      router.push(`/${currentWorkspace.id}/tasks/${taskId}`);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-1 p-6 ">
+      <BoardColumn
+        status="pending"
+        tasks={pendingTasks}
+        icon={Scan}
+        iconBg="bg-blue-50 dark:bg-blue-950/20"
+        onStatusChange={handleStatusChange}
+        onTaskClick={handleTaskClick}
+      />
+      <BoardColumn
+        status="in_progress"
+        tasks={inProgressTasks}
+        icon={Target}
+        iconBg="bg-orange-50 dark:bg-orange-950/20"
+        onStatusChange={handleStatusChange}
+        onTaskClick={handleTaskClick}
+      />
+      <BoardColumn
+        status="completed"
+        tasks={completedTasks}
+        icon={CheckCircle2}
+        iconBg="bg-accent dark:bg-accent/20"
+        onStatusChange={handleStatusChange}
+        onTaskClick={handleTaskClick}
+      />
+    </div>
+  );
 };
 
 export default BoardView;

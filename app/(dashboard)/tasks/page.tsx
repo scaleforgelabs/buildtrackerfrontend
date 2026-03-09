@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Layout,
   List,
@@ -23,6 +23,11 @@ import CreateTaskModal from '@/app/components/tasks/modals/CreateTaskModal'
 const TasksPage = () => {
   const [currentView, setCurrentView] = useState('list')
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const tabs = [
     { id: 'kanban', label: 'Kanban', icon: Layout },
@@ -34,6 +39,8 @@ const TasksPage = () => {
   ]
 
   const renderView = () => {
+    if (!mounted) return <div>Loading...</div>
+    
     switch (currentView) {
       case 'kanban': return <KanbanView />
       case 'list': return <ListView />
@@ -43,6 +50,17 @@ const TasksPage = () => {
       case 'gantt': return <GanttView />
       default: return <ListView />
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="p-6 space-y-8 bg-muted min-h-screen">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+        </div>
+      </div>
+    )
   }
 
   return (

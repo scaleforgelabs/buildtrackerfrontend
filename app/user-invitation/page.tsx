@@ -101,7 +101,7 @@ export default function WorkspacesPage() {
                                     <div>
                                         <p className="text-sm font-medium">{ws.name}</p>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <AvatarStack avatars={ws.avatars}  />
+                                            <AvatarStack avatars={ws.avatars} />
                                             <span className="text-xs text-muted-foreground">
                                                 view all members
                                             </span>

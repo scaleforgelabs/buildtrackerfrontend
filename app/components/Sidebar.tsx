@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   ChevronDown,
@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import { Images } from "@/public";
 import { useRouter, usePathname } from "next/navigation";
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
+import CreateWorkspaceModal from "./modals/CreateWorkspaceModal";
+import { workspacesService } from "@/libs/api/services";
+// import { useWorkspace } from "@/libs/hooks/useWorkspace";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, link: "/home" },
@@ -31,15 +35,18 @@ const navItems = [
   { label: "Reports", icon: BarChart3, link: "/reports" },
   { label: "Activity Logs", icon: LayoutDashboard, link: "/activity-logs" },
   { label: "Notifications", icon: Bell, link: "/notifications" },
-  { label: "My tasks", icon: Bell, link: "/my-tasks" },
+  { label: "My tasks", icon: Bell, link: "/my-tasks", global: true },
 ];
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const { workspaces, currentWorkspace, setCurrentWorkspace, switchWorkspace, workspaceSettings } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
+  // const { workspaces, currentWorkspace, setCurrentWorkspace, loading } = useWorkspace();
+
 
   return (
     <>
@@ -95,6 +102,9 @@ export default function Sidebar() {
               </button>
             </div>
 
+
+
+
             {/* Workspace Box */}
             {!collapsed && (
               <div className="mb-6 rounded-xl border border-sidebar-border bg-card overflow-hidden">
@@ -102,20 +112,50 @@ export default function Sidebar() {
                   onClick={() => setWorkspaceOpen((v) => !v)}
                   className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-sidebar-accent"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-foreground py-1">
-                      Paystack’s Workspace
-                    </p>
-                    <p className="text-xs text-muted-foreground">Owner</p>
-                  </div>
+                  {currentWorkspace ? (
+                    <div>
+                      <p className="text-sm font-medium text-foreground py-1">
+                        {currentWorkspace.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{currentWorkspace.user_role}</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm font-medium text-foreground py-1">
+                        Select Workspace
+                      </p>
+                    </div>
+                  )}
                   <ChevronDown
                     className={`w-4 h-4 text-muted-foreground transition-transform ${workspaceOpen ? "rotate-180" : ""
                       }`}
                   />
                 </button>
 
+                {workspaceOpen && (
+                  <div className="border-t border-border max-h-48 overflow-y-auto">
+                    {workspaces.map((ws: any) => (
+                      <button
+                        key={ws.id}
+                        onClick={() => {
+                          switchWorkspace(ws);
+                          setWorkspaceOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-sidebar-accent ${currentWorkspace?.id === ws.id ? 'bg-sidebar-accent' : ''
+                          }`}
+                      >
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                        <div>
+                          <p className="text-sm font-medium">{ws.name}</p>
+                          <p className="text-xs text-muted-foreground">{ws.user_role}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="border-t border-border">
-                  <button className="flex w-full items-center gap-2 px-3 py-3 text-sm hover:bg-sidebar-accent">
+                  <button onClick={() => setShowCreateModal(true)} className="flex w-full items-center gap-2 px-3 py-3 text-sm hover:bg-sidebar-accent">
                     <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-sidebar-border">
                       <Plus className="w-4 h-4" />
                     </span>
@@ -133,34 +173,54 @@ export default function Sidebar() {
             {/* Navigation */}
 
             <nav className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.link;
+              {(() => {
+                const filteredNavItems = navItems.filter(item => {
+                  if (!workspaceSettings?.enabled_modules) return true;
+                  const modules = workspaceSettings.enabled_modules;
 
-                return (
-                  <button
-                    key={item.label}
-                    onClick={() => {
-                      router.push(item.link);
-                      setMobileOpen(false);
-                    }}
-                    className={`w-full flex items-center rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "gap-3 px-3 py-2"
-                      } ${isActive
-                        ? "font-semibold text-foreground"
-                        : "text-muted-foreground"
-                      }`}
-                  >
-                    <Icon
-                      className={`${collapsed ? "w-6 h-6" : "w-5 h-5"} ${isActive ? "text-blue-600" : "text-muted-foreground"
+                  // Planning currently hides nothing based on user request
+                  if (!modules.my_tasks && item.label === "My tasks") return false;
+                  if (!modules.logs && item.label === "Activity Logs") return false;
+
+                  return true;
+                });
+
+                return filteredNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const workspaceBasedLink = (currentWorkspace && !item.global) ? `/${currentWorkspace.id}${item.link}` : item.link;
+                  const isActive = pathname === workspaceBasedLink || (item.global && pathname.startsWith(item.link));
+
+                  return (
+                    <button
+                      key={item.label}
+                      onClick={() => {
+                        if (item.global) {
+                          router.push(workspaceBasedLink);
+                        } else if (currentWorkspace) {
+                          router.push(workspaceBasedLink);
+                        } else {
+                          router.push(workspaceBasedLink);
+                        }
+                        setMobileOpen(false);
+                      }}
+                      className={`w-full flex items-center rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "gap-3 px-3 py-2"
+                        } ${isActive
+                          ? "font-semibold text-foreground bg-secondary"
+                          : "text-muted-foreground hover:bg-secondary/50"
                         }`}
-                    />
+                    >
+                      <Icon
+                        className={`${collapsed ? "w-6 h-6" : "w-5 h-5"} ${isActive ? "text-primary" : "text-muted-foreground"
+                          }`}
+                      />
 
-                    {!collapsed && (
-                      <span className="text-sm">{item.label}</span>
-                    )}
-                  </button>
-                );
-              })}
+                      {!collapsed && (
+                        <span className="text-sm">{item.label}</span>
+                      )}
+                    </button>
+                  );
+                });
+              })()}
             </nav>
           </div>
 
@@ -198,6 +258,11 @@ export default function Sidebar() {
           )}
         </div>
       </aside>
+
+      <CreateWorkspaceModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </>
   );
 }

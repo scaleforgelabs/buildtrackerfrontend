@@ -19,9 +19,19 @@ const IntegrationCard = ({
   description,
   icon,
   categoryColor = "blue",
-  isActive: initialActive = false
-}: IntegrationCardProps) => {
+  isActive: initialActive = false,
+  onToggle,
+  onRemove
+}: IntegrationCardProps & {
+  onToggle?: (active: boolean) => void;
+  onRemove?: () => void;
+}) => {
   const [isActive, setIsActive] = useState(initialActive);
+
+  // Sync local state with prop when it changes
+  React.useEffect(() => {
+    setIsActive(initialActive);
+  }, [initialActive]);
 
   const getCategoryStyles = (color: string) => {
     const colors: Record<string, string> = {
@@ -46,6 +56,7 @@ const IntegrationCard = ({
               width={40}
               height={40}
               className="object-contain"
+              unoptimized 
             />
           </div>
           <div>
@@ -67,13 +78,19 @@ const IntegrationCard = ({
           <button className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors">
             Details
           </button>
-          <button className="rounded-xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors">
+          <button
+            onClick={onRemove}
+            className="rounded-xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
+          >
             Remove
           </button>
         </div>
         <Switch
           checked={isActive}
-          onCheckedChange={setIsActive}
+          onCheckedChange={(checked) => {
+            setIsActive(checked);
+            onToggle?.(checked);
+          }}
         />
       </div>
     </div >

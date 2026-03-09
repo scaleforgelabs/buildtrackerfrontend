@@ -1,14 +1,110 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Camera, Edit, Lock, EyeOff, LogOut, Trash2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Label } from "@/app/components/ui/label";
 import { Checkbox } from "@/app/components/ui/checkbox";
+import { useAuth } from "@/libs/hooks/useAuth";
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
+import { authService } from "@/libs/api/auth";
+import { toast } from "sonner";
 
 export const AccountTab = () => {
+    const { user, logout } = useAuth();
+    const { currentWorkspace } = useWorkspace();
+
+    // Profile State
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [role, setRole] = useState("");
+    const [phone, setPhone] = useState("");
+    const [bio, setBio] = useState("");
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+    // Password State
+    const [oldPassword, setOldPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [showOldPassword, setShowOldPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (user) {
+            setFirstName(user.first_name || "");
+            setLastName(user.last_name || "");
+            setEmail(user.email || "");
+            setRole(user.role || "");
+            setPhone(user.phone || "");
+            setBio(user.bio || "");
+            setAvatarPreview(user.avatar || null);
+        }
+    }, [user]);
+
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 15 * 1024 * 1024) {
+                toast.error("Image must be smaller than 15MB");
+                return;
+            }
+            setAvatarFile(file);
+            setAvatarPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        setIsSavingProfile(true);
+        try {
+            const data: any = {
+                first_name: firstName,
+                last_name: lastName,
+                role: role,
+                phone: phone,
+                bio: bio
+            };
+            if (avatarFile) {
+                data.avatar = avatarFile;
+            }
+
+            await authService.updateProfile(data);
+            toast.success("Profile updated successfully! Refresh to see your new data everywhere.");
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || "Failed to update profile");
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
+
+    const handleSavePassword = async () => {
+        if (!oldPassword || !newPassword) {
+            toast.error("Please enter both current and new password");
+            return;
+        }
+
+        setIsSavingPassword(true);
+        try {
+            await authService.changePassword({ old_password: oldPassword, new_password: newPassword });
+            toast.success("Password updated successfully");
+            setOldPassword("");
+            setNewPassword("");
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || "Failed to update password");
+        } finally {
+            setIsSavingPassword(false);
+        }
+    };
+
+    // Calculate initials for fallback avatar
+    const initials = (firstName?.charAt(0) || "") + (lastName?.charAt(0) || "");
+
     return (
         <div className="space-y-12">
             {/* Profile Section */}
@@ -21,13 +117,29 @@ export const AccountTab = () => {
                 <div className="flex items-center space-x-6">
                     <div className="relative group">
                         <div className="w-24 h-24 rounded-full bg-linear-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden ring-4 ring-background">
-                            {/* Profile Image Placeholder */}
-                            <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                            {avatarPreview ? (
+                                <img src={avatarPreview.startsWith('http') ? avatarPreview : `http://127.0.0.1:8000${avatarPreview}`} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                                <span>{initials || "U"}</span>
+                            )}
+                            <div
+                                className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
                                 <Camera className="w-8 h-8 text-white" />
                             </div>
-                            AM
                         </div>
-                        <button className="absolute -bottom-1 -right-1 bg-background p-2 rounded-full shadow-md border border-border hover:bg-muted transition-colors">
+                        <input
+                            type="file"
+                            accept="image/png, image/jpeg"
+                            className="hidden"
+                            ref={fileInputRef}
+                            onChange={handleAvatarChange}
+                        />
+                        <button
+                            className="absolute -bottom-1 -right-1 bg-background p-2 rounded-full shadow-md border border-border hover:bg-muted transition-colors"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
                             <Edit className="w-4 h-4 text-primary" />
                         </button>
                     </div>
@@ -39,25 +151,32 @@ export const AccountTab = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                     <div className="space-y-2">
-                        <Label htmlFor="fullname" className="text-sm font-semibold text-foreground/80 ml-1">Full name</Label>
-                        <Input id="fullname" defaultValue="Abdulmalik Olabisi" className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary" />
+                        <Label htmlFor="firstName" className="text-sm font-semibold text-foreground/80 ml-1">First name</Label>
+                        <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary" />
                     </div>
                     <div className="space-y-2">
+                        <Label htmlFor="lastName" className="text-sm font-semibold text-foreground/80 ml-1">Last name</Label>
+                        <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary" />
+                    </div>
+                    <div className="space-y-2 col-span-1 md:col-span-2">
                         <Label htmlFor="email" className="text-sm font-semibold text-foreground/80 ml-1">Email</Label>
-                        <Input id="email" defaultValue="abdulmalik@buildtracker.com" className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary" />
+                        <Input id="email" value={email} disabled className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary opacity-60 cursor-not-allowed" />
+                        <p className="text-xs text-muted-foreground ml-1">Email cannot be changed directly.</p>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="role" className="text-sm font-semibold text-foreground/80 ml-1">Role</Label>
-                        <Input id="role" defaultValue="Product Manager" className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary" />
+                        <Input id="role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Product Manager" className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="phone" className="text-sm font-semibold text-foreground/80 ml-1">Phone number</Label>
-                        <Input id="phone" defaultValue="+1 23456789021" className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary" />
+                        <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 234567890" className="h-12 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary" />
                     </div>
                     <div className="md:col-span-2 space-y-2">
                         <Label htmlFor="bio" className="text-sm font-semibold text-foreground/80 ml-1">Bio</Label>
                         <Textarea
                             id="bio"
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
                             placeholder="Write your Bio here e.g your hobbies, interests ETC"
                             className="min-h-[140px] bg-muted/50 border-border rounded-2xl resize-none focus:ring-primary/10 focus:border-primary p-4"
                         />
@@ -66,7 +185,9 @@ export const AccountTab = () => {
 
                 <div className="flex space-x-3 pt-2">
                     <Button variant="outline" className="h-11 px-8 rounded-xl border-border font-semibold hover:bg-muted transition-all">Cancel</Button>
-                    <Button className="h-11 px-8 rounded-xl bg-primary hover:bg-primary/90 shadow-sm font-semibold transition-all">Save</Button>
+                    <Button onClick={handleSaveProfile} disabled={isSavingProfile} className="h-11 px-8 rounded-xl bg-primary hover:bg-primary/90 shadow-sm font-semibold transition-all">
+                        {isSavingProfile ? "Saving..." : "Save"}
+                    </Button>
                 </div>
             </section>
 
@@ -111,11 +232,16 @@ export const AccountTab = () => {
                                 <Lock className="w-4 h-4" />
                             </span>
                             <Input
-                                type="password"
-                                defaultValue="••••••••••••••"
+                                type={showOldPassword ? "text" : "password"}
+                                value={oldPassword}
+                                onChange={(e) => setOldPassword(e.target.value)}
+                                placeholder="••••••••"
                                 className="h-12 pl-11 pr-11 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary"
                             />
-                            <button className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                            <button
+                                onClick={() => setShowOldPassword(!showOldPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
                                 <EyeOff className="w-4 h-4" />
                             </button>
                         </div>
@@ -127,11 +253,16 @@ export const AccountTab = () => {
                                 <Lock className="w-4 h-4" />
                             </span>
                             <Input
-                                type="password"
-                                defaultValue="••••••••••••••"
+                                type={showNewPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="••••••••"
                                 className="h-12 pl-11 pr-11 bg-muted/50 border-border rounded-xl focus:ring-primary/10 focus:border-primary"
                             />
-                            <button className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                            <button
+                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
                                 <EyeOff className="w-4 h-4" />
                             </button>
                         </div>
@@ -139,8 +270,10 @@ export const AccountTab = () => {
                 </div>
 
                 <div className="flex space-x-3">
-                    <Button variant="outline" className="h-11 px-8 rounded-xl border-border font-semibold hover:bg-muted">Cancel</Button>
-                    <Button className="h-11 px-8 rounded-xl bg-primary hover:bg-primary/90 shadow-sm font-semibold">Save</Button>
+                    <Button variant="outline" className="h-11 px-8 rounded-xl border-border font-semibold hover:bg-muted" onClick={() => { setOldPassword(""); setNewPassword(""); }}>Cancel</Button>
+                    <Button onClick={handleSavePassword} disabled={isSavingPassword || !oldPassword || !newPassword} className="h-11 px-8 rounded-xl bg-primary hover:bg-primary/90 shadow-sm font-semibold">
+                        {isSavingPassword ? "Saving..." : "Save"}
+                    </Button>
                 </div>
             </section>
 
@@ -152,7 +285,7 @@ export const AccountTab = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-4">
-                    <Button variant="outline" className="h-12 px-6 rounded-xl border-border group hover:border-border/80">
+                    <Button onClick={() => logout()} variant="outline" className="h-12 px-6 rounded-xl border-border group hover:border-border/80">
                         <LogOut className="w-4 h-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
                         <span className="font-semibold text-foreground/80">Log out</span>
                     </Button>

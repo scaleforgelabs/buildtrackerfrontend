@@ -15,16 +15,22 @@ import {
 import { Textarea } from "../../ui/textarea";
 import IconSelectionModal from "./IconSelectionModal";
 
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
+import { useAuth } from "@/libs/hooks/useAuth";
+import { quickLinksService } from "@/libs/api/services";
+
 interface AddLinksModalProps {
     open: boolean;
     onClose: () => void;
+    onLinkAdded?: () => void;
 }
 
 export default function AddLinksModal({
     open,
     onClose,
+    onLinkAdded,
 }: AddLinksModalProps) {
-
+    const { user } = useAuth();
     const [selectedIcon, setSelectedIcon] = useState<{
         id: string;
         name: string;
@@ -36,6 +42,7 @@ export default function AddLinksModal({
     const [url, setUrl] = useState("");
     const [category, setCategory] = useState("");
     const [description, setDescription] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const handleIconSelect = (icon: { id: string; name: string; icon: string; color?: string }) => {
         setSelectedIcon(icon);
@@ -45,24 +52,42 @@ export default function AddLinksModal({
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const { currentWorkspace } = useWorkspace();
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const formData = {
-            icon: selectedIcon,
-            name,
+        if (!currentWorkspace?.id) {
+            console.error("No workspace found");
+            return;
+        }
+
+        setLoading(true);
+
+        const payload = {
+            title: name,
             url,
             category,
             description,
+            icon: selectedIcon?.icon || "",
+            visibility: "all_members" // Default to all_members for now
         };
 
-        console.log("Form submitted with data:", formData);
-
-        // You can add your API call here
-        // Example: await inviteMember(formData);
-
-        // Close modal after submission
-        onClose();
+        try {
+            await quickLinksService.createSharedQuickLink(currentWorkspace.id, payload);
+            if (onLinkAdded) onLinkAdded();
+            onClose();
+            // Reset form
+            setName("");
+            setUrl("");
+            setCategory("");
+            setDescription("");
+            setSelectedIcon(null);
+        } catch (error) {
+            console.error("Failed to create quick link:", error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -210,7 +235,7 @@ export default function AddLinksModal({
                             type="submit"
                             className="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 shadow-sm"
                         >
-                            Add Link
+                            {loading ? "Adding..." : "Add Link"}
                         </button>
                     </div>
                 </form>

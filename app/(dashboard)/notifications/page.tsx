@@ -1,112 +1,137 @@
 "use client";
 
-import { useState } from "react";
-import Image, { StaticImageData } from "next/image";
-import { Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { Check, Loader2 } from "lucide-react";
 import { Images } from "@/public";
-import Link from "next/link";
+import { notificationsService } from "@/libs/api/services";
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
 
-type NotificationType = "comment" | "assign" | "upload" | "add";
-
-interface NotificationItem {
-    id: string;
-    user: string;
-    avatar: StaticImageData | string;
-    action: string;
-    target: string;
-    targetLink?: string; // Optional link for the target
-    context?: string; // e.g. "to Wiki", "to Quick Links"
-    time: string;
-    workspace: string;
-    isRead: boolean;
-    type: NotificationType;
-    content?: string; // For comments
-    assignedTo?: string; // For assignments
-    fileCheck?: boolean; // If there's a file icon needed like in the 3rd item
+interface Notification {
+  id: string;
+  user: string;
+  workspace: string;
+  action: string;
+  description: string;
+  note_type: string;
+  severity: 'info' | 'success' | 'warning' | 'error';
+  is_read: boolean;
+  created_at: string;
+  read_at: string | null;
 }
 
-const initialNotifications: NotificationItem[] = [
-    {
-        id: "1",
-        user: "Abdullah Saliu",
-        avatar: Images.user,
-        action: "commented on",
-        target: "Incorrect Integration Card Details",
-        context: "Tasks",
-        time: "13 hours ago",
-        workspace: "Paystack",
-        isRead: false,
-        type: "comment",
-        content: "@Brian Griffin when you you wanna go out buddy?"
-    },
-    {
-        id: "2",
-        user: "Muaz Balogun",
-        avatar: Images.user,
-        action: "assigned a task",
-        target: "Incorrect Integration Card Details",
-        context: "Tasks",
-        time: "13 hours ago",
-        workspace: "BuildTracker Dev",
-        isRead: false,
-        type: "assign",
-        assignedTo: "Abdulhameed Alli-Shittu"
-    },
-    {
-        id: "3",
-        user: "Muaz Balogun",
-        avatar: Images.user,
-        action: "upload",
-        target: "PRD Document.pdf",
-        context: "to Wiki",
-        time: "13 hours ago",
-        workspace: "Paystack",
-        isRead: false,
-        type: "upload",
-        fileCheck: true
-    },
-    {
-        id: "4",
-        user: "Muaz Balogun",
-        avatar: Images.user,
-        action: "add",
-        target: "BuildTracker Website",
-        context: "to Quick Links",
-        time: "13 hours ago",
-        workspace: "Paystack",
-        isRead: false,
-        type: "add",
-        targetLink: "#"
-    },
-    {
-        id: "5",
-        user: "Muaz Balogun",
-        avatar: Images.user,
-        action: "add",
-        target: "BuildTracker Website",
-        context: "to Quick Links",
-        time: "13 hours ago",
-        workspace: "Paystack",
-        isRead: true, // Example of a read notification, though image implies all unread or mix
-        type: "add",
-        targetLink: "#"
+function formatTimeAgo(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+}
+
+function getSeverityColor(severity: string): string {
+    switch (severity) {
+        case 'error': return 'bg-red-600';
+        case 'warning': return 'bg-yellow-600';
+        case 'success': return 'bg-green-600';
+        case 'info':
+        default: return 'bg-blue-600';
     }
-];
+}
 
 export default function NotificationsPage() {
     const [activeTab, setActiveTab] = useState("all");
-    const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { currentWorkspace } = useWorkspace();
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
-    const workspaceUnreadCount = notifications.filter(n => !n.isRead && n.workspace === "Paystack").length; // Assuming filtering logic
+    console.log('🎯 NotificationsPage rendered:', { currentWorkspace: currentWorkspace?.id });
 
-    const handleMarkAllRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const workspaceUnreadCount = notifications.filter(n => !n.is_read && n.workspace === currentWorkspace?.id).length;
+
+    const fetchNotifications = async () => {
+        console.log('🚀 Starting fetchNotifications...');
+        try {
+            setLoading(true);
+            setError(null);
+            
+            console.log('📡 Making API call...', { activeTab, currentWorkspace: currentWorkspace?.id });
+            console.log('🔍 notificationsService:', notificationsService);
+            
+            const response = activeTab === "all" 
+                ? await notificationsService.getNotifications()
+                : currentWorkspace 
+                    ? await notificationsService.getWorkspaceNotifications(currentWorkspace.id)
+                    : await notificationsService.getNotifications();
+            
+            console.log('🔔 Notifications API Response:', response.data);
+            setNotifications(response.data.results.data);
+        } catch (err: any) {
+            console.error('❌ Failed to fetch notifications:', err);
+            setError('Failed to load notifications');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleNotificationClick = (id: string) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    const handleMarkAllRead = async () => {
+        try {
+            await notificationsService.markAllAsRead();
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
+        } catch (err) {
+            console.error('Failed to mark all as read:', err);
+        }
     };
+
+    const handleNotificationClick = async (id: string) => {
+        const notification = notifications.find(n => n.id === id);
+        if (notification && !notification.is_read) {
+            try {
+                await notificationsService.markAsRead(id);
+                setNotifications(prev => prev.map(n => 
+                    n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
+                ));
+            } catch (err) {
+                console.error('Failed to mark as read:', err);
+            }
+        }
+    };
+
+    useEffect(() => {
+        console.log('🔄 useEffect triggered:', { activeTab, currentWorkspace: currentWorkspace?.id });
+        fetchNotifications();
+    }, [activeTab, currentWorkspace]);
+
+    if (loading) {
+        return (
+            <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
+                <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
+                <div className="text-center py-20">
+                    <p className="text-red-600 font-medium">{error}</p>
+                    <button 
+                        onClick={fetchNotifications}
+                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
@@ -144,20 +169,22 @@ export default function NotificationsPage() {
                             </span>
                         )}
                     </button>
-                    <button
-                        onClick={() => setActiveTab("workspace")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${activeTab === "workspace"
-                                ? "bg-blue-50 text-blue-600 shadow-sm"
-                                : "text-muted-foreground hover:bg-muted"
-                            }`}
-                    >
-                        Paystack&apos;s Workspace
-                        {workspaceUnreadCount > 0 && (
-                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "workspace" ? "bg-blue-100" : "bg-muted-foreground/10"}`}>
-                                {workspaceUnreadCount}
-                            </span>
-                        )}
-                    </button>
+                    {currentWorkspace && (
+                        <button
+                            onClick={() => setActiveTab("workspace")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${activeTab === "workspace"
+                                    ? "bg-blue-50 text-blue-600 shadow-sm"
+                                    : "text-muted-foreground hover:bg-muted"
+                                }`}
+                        >
+                            {currentWorkspace.name}&apos;s Workspace
+                            {workspaceUnreadCount > 0 && (
+                                <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "workspace" ? "bg-blue-100" : "bg-muted-foreground/10"}`}>
+                                    {workspaceUnreadCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -166,21 +193,21 @@ export default function NotificationsPage() {
                 {notifications.map((notification) => (
                     <div
                         key={notification.id}
-                        className={`p-6 hover:bg-muted/40 transition-colors duration-200 cursor-pointer group ${!notification.isRead ? 'bg-blue-50/10' : ''}`}
+                        className={`p-6 hover:bg-muted/40 transition-colors duration-200 cursor-pointer group ${!notification.is_read ? 'bg-blue-50/10' : ''}`}
                         onClick={() => handleNotificationClick(notification.id)}
                     >
                         <div className="flex items-start gap-4">
                             {/* Unread Indicator */}
                             <div className="pt-3">
-                                <div className={`w-2 h-2 rounded-full ${!notification.isRead ? 'bg-blue-600' : 'bg-transparent'}`} />
+                                <div className={`w-2 h-2 rounded-full ${!notification.is_read ? getSeverityColor(notification.severity) : 'bg-transparent'}`} />
                             </div>
 
                             {/* Avatar */}
                             <div className="flex-shrink-0">
                                 <div className="w-10 h-10 relative rounded-full overflow-hidden border border-border">
                                     <Image
-                                        src={notification.avatar}
-                                        alt={notification.user}
+                                        src={Images.user}
+                                        alt="User"
                                         fill
                                         className="object-cover"
                                     />
@@ -190,48 +217,33 @@ export default function NotificationsPage() {
                             {/* Content */}
                             <div className="flex-1 space-y-1">
                                 <div className="text-[15px] leading-relaxed">
-                                    <span className="font-bold text-foreground">{notification.user}</span>
-                                    <span className="text-foreground/80 px-1">{notification.action}</span>
-                                    <span className="font-bold text-foreground">{notification.target}</span>
-                                    {notification.context && <span className="text-foreground/80 pl-1">{notification.context}</span>}
+                                    <span className="font-bold text-foreground">{notification.action}</span>
                                 </div>
 
-                                <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
-                                    <span>{notification.context?.includes("Tasks") || notification.action === "commented on" ? "Tasks" : (notification.context?.includes("Quick Links") ? "Quick Links" : "Wiki")}</span>
-                                    <span>•</span>
-                                    <span>{notification.time}</span>
-                                    <span>•</span>
-                                    <span>{notification.workspace}</span>
-                                </div>
-
-                                {/* Extra content for specific types */}
-                                {notification.type === "comment" && notification.content && (
-                                    <p className="mt-2 text-sm text-foreground/70">
-                                        {notification.content}
+                                {notification.description && (
+                                    <p className="text-sm text-foreground/70">
+                                        {notification.description}
                                     </p>
                                 )}
 
-                                {notification.type === "assign" && notification.assignedTo && (
-                                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                                        <UsersIcon className="w-4 h-4" />
-                                        <span>Assigned to: <span className="font-medium text-foreground">{notification.assignedTo}</span></span>
-                                    </div>
-                                )}
-
-                                {notification.type === "upload" && notification.fileCheck && (
-                                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                                        <FileTextIcon className="w-4 h-4" />
-                                        <span>PRD Document.pdf</span>
-                                    </div>
-                                )}
-
-                                {notification.targetLink && (
-                                    <div className="mt-2">
-                                        <Link href={notification.targetLink} className="text-sm font-medium text-blue-600 hover:underline">
-                                            {notification.target}
-                                        </Link>
-                                    </div>
-                                )}
+                                <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        notification.severity === 'error' ? 'bg-red-100 text-red-700' :
+                                        notification.severity === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                                        notification.severity === 'success' ? 'bg-green-100 text-green-700' :
+                                        'bg-blue-100 text-blue-700'
+                                    }`}>
+                                        {notification.severity}
+                                    </span>
+                                    {notification.note_type && (
+                                        <>
+                                            <span>•</span>
+                                            <span>{notification.note_type.replace('_', ' ')}</span>
+                                        </>
+                                    )}
+                                    <span>•</span>
+                                    <span>{formatTimeAgo(notification.created_at)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -249,50 +261,4 @@ export default function NotificationsPage() {
             </div>
         </div>
     );
-}
-
-// Simple icons for specific notification types content
-function UsersIcon(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-    )
-}
-
-function FileTextIcon(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" x2="8" y1="13" y2="13" />
-            <line x1="16" x2="8" y1="17" y2="17" />
-            <line x1="10" x2="8" y1="9" y2="9" />
-        </svg>
-    )
 }

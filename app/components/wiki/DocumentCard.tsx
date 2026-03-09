@@ -1,14 +1,33 @@
+import UserAvatar from "../ui/UserAvatar";
 import Image, { StaticImageData } from "next/image";
-import { MoreVertical, Clock } from "lucide-react";
+import { Clock, MoreVertical } from "lucide-react";
 import { Images } from "@/public";
-import { cn } from "@/libs/utils";
+
+const FILE_ICONS = [
+  "/images/pdf_icon.svg", "/images/doc_icon.svg", "/images/docx_icon.svg",
+  "/images/xls_icon.svg", "/images/ppt_icon.svg", "/images/pptx_icon.svg",
+  "/images/png_icon.svg", "/images/jpg_icon.svg", "/images/jpeg_icon.svg",
+  "/images/gif_icon.svg", "/images/webp_icon.svg", "/images/svg_icon.svg",
+  "/images/txt_icon.svg", "/images/csv_icon.svg", "/images/zip_icon.svg",
+  "/images/mp4_icon.svg", "/images/mp3_icon.svg",
+];
+
+function isFileIcon(src: string | StaticImageData): boolean {
+  return typeof src === "string" && FILE_ICONS.some(icon => src.endsWith(icon));
+}
 
 type DocumentCardProps = {
   cover: string | StaticImageData;
   title: string;
   time: string;
   fileType: string;
-  avatar: string;
+  user?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    avatar?: string;
+    name?: string;
+  };
   view?: "grid" | "list";
 };
 
@@ -17,15 +36,21 @@ export function DocumentCard({
   title,
   time,
   fileType,
-  avatar,
+  user,
   view = "grid",
 }: DocumentCardProps) {
   if (view === "list") {
     return (
       <div className="relative h-[82px] w-full rounded-xl overflow-hidden bg-card shadow-sm border flex items-center">
         {/* Cover Image - Left side */}
-        <div className="relative h-full w-[120px] flex-shrink-0">
-          <Image src={cover} alt={title} fill className="object-cover" />
+        <div className="relative h-full w-[120px] flex-shrink-0 bg-muted">
+          {isFileIcon(cover) ? (
+            <div className="flex h-full w-full items-center justify-center">
+              <Image src={cover as string} alt={title} width={48} height={48} unoptimized />
+            </div>
+          ) : (
+            <Image src={cover} alt={title} fill className="object-cover" unoptimized />
+          )}
         </div>
 
         {/* Content - Right side */}
@@ -39,13 +64,7 @@ export function DocumentCard({
           </div>
 
           <div className="flex items-center gap-4">
-            <Image
-              src={Images.user}
-              alt="Owner"
-              width={32}
-              height={32}
-              className="rounded-full"
-            />
+            <UserAvatar user={user} size={32} />
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <span className="h-3 w-3 rounded-full bg-primary" />
               {fileType}
@@ -63,8 +82,14 @@ export function DocumentCard({
   return (
     <div className="relative h-[260px] w-full rounded-[24px] overflow-hidden bg-card shadow-sm">
       {/* Cover Image - Full height */}
-      <div className="absolute inset-0">
-        <Image src={cover} alt={title} fill className="object-cover " />
+      <div className="absolute inset-0 bg-muted">
+        {isFileIcon(cover) ? (
+          <div className="flex h-full w-full items-center justify-center">
+            <Image src={cover as string} alt={title} width={80} height={80} unoptimized />
+          </div>
+        ) : (
+          <Image src={cover} alt={title} fill className="object-cover" unoptimized />
+        )}
       </div>
 
       {/* Overlay Sheet */}
@@ -102,13 +127,7 @@ export function DocumentCard({
 
             {/* Footer */}
             <div className="flex items-center justify-between">
-              <Image
-                src={Images.user}
-                alt="Owner"
-                width={32}
-                height={32}
-                className="rounded-full"
-              />
+              <UserAvatar user={user} size={32} />
 
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <span className="h-3 w-3 rounded-full bg-primary" />
