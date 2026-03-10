@@ -21,7 +21,7 @@ export default function QuickLinksPage() {
           </p>
         </div>
         <button className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow"
-        onClick={() => setOpen(true)}>
+          onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" />
           Add
           <span className="hidden md:flex">
@@ -35,11 +35,11 @@ export default function QuickLinksPage() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <QuickLinkCard title="Buildtracker Website" />
           <QuickLinkCard title="Buildtracker Design" />
-          <QuickLinkCard title="Scaleforge Website" logo="scaleforge" />
+          <QuickLinkCard title="Scaleforge Website" icon="scaleforge" />
           <QuickLinkCard title="Buildtracker Whatsapp" />
           <QuickLinkCard title="Slack Invitation" />
           <QuickLinkCard title="Buildtracker Drive" />
-          <QuickLinkCard title="Scaleforge Lab Brand" logo="scaleforge" />
+          <QuickLinkCard title="Scaleforge Lab Brand" icon="scaleforge" />
           <QuickLinkCard title="BuildTracker GitHub" />
           <QuickLinkCard title="Canva Workspace" />
           <QuickLinkCard title="Dribbble Workspace" />

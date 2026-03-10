@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { workspacesService } from '@/libs/api/services';
+import { useAuth } from './useAuth';
 
 interface Workspace {
   id: string;
@@ -62,13 +63,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const fetchWorkspaces = async () => {
-    if (!mounted) return;
+    if (!mounted || !isAuthenticated) return;
 
     setLoading(true);
     setError(null);
@@ -132,10 +134,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (mounted) {
+    if (mounted && isAuthenticated) {
       fetchWorkspaces();
     }
-  }, [mounted]);
+  }, [mounted, isAuthenticated]);
 
   // Fetch settings when currentWorkspace changes
   useEffect(() => {

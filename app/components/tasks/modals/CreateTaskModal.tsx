@@ -32,6 +32,8 @@ interface Member {
         last_name: string
         email: string
     }
+    role: string
+    job_role?: string
 }
 
 const CreateTaskModal = ({ isOpen, onClose, onTaskCreated }: CreateTaskModalProps) => {
@@ -82,11 +84,11 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated }: CreateTaskModalProp
             if (formData.start_date) formDataToSend.append('start_date', formData.start_date)
             if (formData.end_date) formDataToSend.append('end_date', formData.end_date)
             formDataToSend.append('percent_complete', formData.percent_complete.toString())
-            
+
             formData.attachments.forEach((file) => {
                 formDataToSend.append('attachments', file)
             })
-            
+
             await api.post(`/tasks/${currentWorkspace.id}/tasks/`, formDataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             })

@@ -13,7 +13,9 @@ interface CreateWorkspaceModalProps {
   required?: boolean;
 }
 
-const workspaceTypes = [
+type WorkspaceType = "Construction" | "Software" | "Event" | "Other";
+
+const workspaceTypes: { value: WorkspaceType; label: string }[] = [
   { value: 'Construction', label: 'Construction' },
   { value: 'Software', label: 'Software' },
   { value: 'Event', label: 'Event' },
@@ -24,7 +26,7 @@ export default function CreateWorkspaceModal({ isOpen, onClose, required = false
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    type: 'Software'
+    type: 'Software' as WorkspaceType
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -103,7 +105,7 @@ export default function CreateWorkspaceModal({ isOpen, onClose, required = false
             <select
               name="type"
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as WorkspaceType })}
               className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {workspaceTypes.map(type => (

@@ -118,16 +118,19 @@ export default function DashboardSection() {
       const chartParams = { Period: period };
 
       const [statsRes, chartsRes, trendsRes, tasksRes] = await Promise.all([
-        api.get(`/analytics/workspaces/${currentWorkspace.id}/dashboard/stats`, { params }),
-        api.get(`/analytics/workspaces/${currentWorkspace.id}/dashboard/charts`, { params: chartParams }),
-        api.get(`/analytics/workspaces/${currentWorkspace.id}/analytics/trends`, { params }),
-        api.get(`/tasks/${currentWorkspace.id}/tasks/`, { params }),
+        api.get(`/analytics/workspaces/${currentWorkspace.id}/dashboard/stats`, { params: { ...params, _t: Date.now() } }),
+        api.get(`/analytics/workspaces/${currentWorkspace.id}/dashboard/charts`, { params: { ...chartParams, _t: Date.now() } }),
+        api.get(`/analytics/workspaces/${currentWorkspace.id}/analytics/trends`, { params: { ...params, _t: Date.now() } }),
+        api.get(`/tasks/${currentWorkspace.id}/tasks/`, { params: { ...params, _t: Date.now() } }),
       ]);
 
       setStats(statsRes.data);
       setChartData(chartsRes.data);
       setTrendData(trendsRes.data);
-      setRecentTasks(tasksRes.data.results?.data?.slice(0, 4) || []);
+
+      const tasksData = tasksRes.data?.results?.data || tasksRes.data?.results || tasksRes.data?.data || tasksRes.data || [];
+      const tasksArray = Array.isArray(tasksData) ? tasksData : [];
+      setRecentTasks(tasksArray.slice(0, 5));
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {
@@ -166,7 +169,7 @@ export default function DashboardSection() {
   const mediumPercent = Math.round((mediumPriority / totalPriority) * 100);
   const lowPercent = Math.round((lowPriority / totalPriority) * 100);
 
-  const healthScore = Math.round((stats?.velocity || 0) * 100);
+  const healthScore = stats?.healthScore || 0;
 
   const handleExportReports = () => {
     if (!stats || !chartData) return;

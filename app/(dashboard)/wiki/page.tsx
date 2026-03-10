@@ -303,7 +303,7 @@ export default function ProjectWikiPage() {
                       title={doc.document_title}
                       time={timeAgo(doc.updated_at)}
                       fileType="DOC"
-                      avatar={doc.author?.avatar ?? "/images/avatar.jpg"}
+                      user={doc.author}
                       view={gridView ? "grid" : "list"}
                     />
                   ))
