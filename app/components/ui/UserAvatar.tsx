@@ -17,7 +17,7 @@ export default function UserAvatar({ user, className = "", size = 40 }: UserAvat
     // 1. Try to get the image
     let imageSrc = user?.avatar;
     if (typeof imageSrc === 'string' && imageSrc.startsWith('/media/')) {
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://187.124.112.241';
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://api.buildtrackerapp.com';
         imageSrc = `${baseUrl}${imageSrc}`;
     } else if (typeof imageSrc === 'string' && imageSrc.startsWith('http')) {
         // If it's already an absolute URL (like from Social Auth or our absolute URI builder), use it directly.

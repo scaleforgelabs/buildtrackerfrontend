@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://187.124.112.241/api",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://api.buildtrackerapp.com/api",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -35,7 +35,7 @@ api.interceptors.response.use(
       if (refresh) {
         try {
           const res = await axios.post(
-            "http://187.124.112.241/api/auth/refresh-token/",
+            `${process.env.NEXT_PUBLIC_API_URL || "https://api.buildtrackerapp.com/api"}/auth/refresh-token/`,
             {
               refresh_token: refresh,
             }
