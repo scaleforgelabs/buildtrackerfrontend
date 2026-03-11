@@ -43,9 +43,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  turbopack: {
-    root: "C:/Users/USER/OneDrive/Desktop/coding/buildtracker_project/buildtracker",
-  },
   async headers() {
     return [
       {
