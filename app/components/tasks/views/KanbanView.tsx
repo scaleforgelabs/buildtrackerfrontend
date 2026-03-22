@@ -23,6 +23,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/app/components/ui/button";
 import { Plus, CheckCircle2, Loader2, Clock } from "lucide-react";
 import { TaskCard } from "../TaskCard";
+import CreateTaskModal from "../modals/CreateTaskModal";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import { useRouter } from "next/navigation";
 import api from "@/libs/api";
@@ -120,11 +121,13 @@ function KanbanColumn({
   icon: Icon,
   columnId,
   items,
+  onAddTicket,
 }: {
   title: string;
   icon: any;
   columnId: ColumnId;
   items: TaskData[];
+  onAddTicket: (columnId: ColumnId) => void;
 }) {
   const { setNodeRef } = useDroppable({ id: columnId });
 
@@ -138,7 +141,7 @@ function KanbanColumn({
             ({items.length})
           </span>
         </div>
-        <Button size="icon" variant="ghost" className="h-8 w-8 text-primary">
+        <Button onClick={() => onAddTicket(columnId)} size="icon" variant="ghost" className="h-8 w-8 text-primary">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -169,22 +172,24 @@ export default function KanbanBoard() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [createTaskStatus, setCreateTaskStatus] = useState<string>("pending");
+
+  const fetchTasks = async () => {
     if (!currentWorkspace?.id) return;
+    try {
+      setLoading(true);
+      const response = await api.get(`/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`);
+      const tasks = response.data.results?.data || [];
+      setColumns(getInitialData(tasks));
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchTasks = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get(`/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`);
-        const tasks = response.data.results?.data || [];
-        setColumns(getInitialData(tasks));
-      } catch (error) {
-        console.error("Failed to fetch tasks:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+  useEffect(() => {
     fetchTasks();
   }, [currentWorkspace?.id]);
 
@@ -277,6 +282,11 @@ export default function KanbanBoard() {
     }
   }
 
+  const handleAddTicket = (columnId: ColumnId) => {
+    setCreateTaskStatus(statusMapping[columnId] || "pending");
+    setIsCreateTaskOpen(true);
+  };
+
   const activeTicket = activeId ? findTicketById(activeId) : null;
 
   if (loading) {
@@ -296,18 +306,21 @@ export default function KanbanBoard() {
           icon={Loader2}
           columnId="pending"
           items={columns.pending}
+          onAddTicket={handleAddTicket}
         />
         <KanbanColumn
           title="In Progress"
           icon={Clock}
           columnId="in_progress"
           items={columns.in_progress}
+          onAddTicket={handleAddTicket}
         />
         <KanbanColumn
           title="Completed"
           icon={CheckCircle2}
           columnId="completed"
           items={columns.completed}
+          onAddTicket={handleAddTicket}
         />
       </div>
       <DragOverlay>
@@ -317,6 +330,13 @@ export default function KanbanBoard() {
           </div>
         ) : null}
       </DragOverlay>
+
+      <CreateTaskModal
+        isOpen={isCreateTaskOpen}
+        onClose={() => setIsCreateTaskOpen(false)}
+        initialStatus={createTaskStatus}
+        onTaskCreated={() => fetchTasks()}
+      />
     </DndContext>
   );
 }

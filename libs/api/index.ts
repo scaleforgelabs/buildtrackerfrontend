@@ -17,6 +17,27 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+
+  // Allow browser to automatically set boundary for multipart form data
+  if (config.data instanceof FormData) {
+    if (config.headers) {
+      delete config.headers['Content-Type'];
+      delete config.headers['content-type'];
+      if (config.headers.post) {
+        delete config.headers.post['Content-Type'];
+        delete config.headers.post['content-type'];
+      }
+      if (config.headers.put) {
+        delete config.headers.put['Content-Type'];
+        delete config.headers.put['content-type'];
+      }
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type');
+        config.headers.delete('content-type');
+      }
+    }
+  }
+
   return config;
 });
 

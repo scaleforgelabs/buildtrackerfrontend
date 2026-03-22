@@ -63,7 +63,7 @@ const ModulesPage = () => {
       </div>
 
       {/* Modules Grid */}
-      <div className="px-8 py-8 bg-background  h-full rounded-2xl">
+      <div className="p-4 md:p-8 bg-background  h-full rounded-2xl">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {modules.map((module) => (
             <div

@@ -1,10 +1,12 @@
 "use client"
 
-import { MoreVertical, Plus, Users, Shield, CheckCircle, UserPlus } from "lucide-react";
+import { MoreVertical, Plus, Users, Shield, CheckCircle, UserPlus, Edit2, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { Images } from "@/public"
 import { useState, useEffect } from "react";
 import InviteMembersModal from "@/app/components/team/modal/InviteMembersModal";
+import EditMemberModal from "@/app/components/team/modal/EditMemberModal";
+import DeleteMemberModal from "@/app/components/team/modal/DeleteMemberModal";
 
 export default function TeamManagementPage() {
   const [open, setOpen] = useState(false);
@@ -126,6 +128,7 @@ const StatusPill = ({ status }: { status: string }) => {
 }
 
 function MemberCard({
+  id,
   name,
   role,
   access,
@@ -134,6 +137,7 @@ function MemberCard({
   avatar,
   accessVariant = "member",
 }: {
+  id?: string;
   name: string;
   role: string;
   access: string;
@@ -142,48 +146,97 @@ function MemberCard({
   avatar: string;
   accessVariant?: "member" | "owner";
 }) {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
-    <div className="rounded-2xl bg-card shadow-sm">
-      <div className="p-4">
-        <div className="flex items-start justify-between">
-          <div
-            className="relative overflow-hidden rounded-xl h-20 w-20 "
-          >
-            <Image
-              src={Images.user}
-              alt="profile.pic"
-              fill
-              className="object-cover"
-            />
+    <>
+      <EditMemberModal
+        open={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        member={{ id, name, email, role, access, phone }}
+        onSaved={() => {
+          setIsEditModalOpen(false);
+        }}
+      />
+      <DeleteMemberModal
+        open={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        member={{ id, email }}
+        onDeleted={() => {
+          setIsDeleteModalOpen(false);
+        }}
+      />
+      <div className="rounded-2xl bg-card shadow-sm">
+        <div className="p-4">
+          <div className="flex items-start justify-between">
+            <div
+              className="relative overflow-hidden rounded-xl h-20 w-20 "
+            >
+              <Image
+                src={Images.user}
+                alt="profile.pic"
+                fill
+                className="object-cover"
+              />
+            </div>
+
+            <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="rounded-full p-1.5 hover:bg-muted/80 transition-colors focus:outline-none"
+              >
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 z-50 mt-1 w-48 rounded-xl border bg-popover shadow-lg p-2 flex flex-col gap-1">
+                    <button
+                      onClick={() => { setMenuOpen(false); setIsEditModalOpen(true); }}
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm font-medium hover:bg-muted rounded-lg w-full text-left transition-colors text-foreground"
+                    >
+                      <Edit2 className="w-4 h-4 text-muted-foreground" /> Edit
+                    </button>
+                    <button
+                      onClick={() => { setMenuOpen(false); setIsDeleteModalOpen(true); }}
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg w-full text-left transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600/80 dark:text-red-400/80" /> Delete
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="pt-4">
+            <p className="font-medium text-foreground">{name}</p>
+            <StatusPill status="Available" />
           </div>
 
-          <MoreVertical className="h-4 w-4 text-muted-foreground" />
-        </div>
-        <div className="pt-4">
-          <p className="font-medium text-foreground">{name}</p>
-          <StatusPill status="Available" />
+          <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+            <p>{email}</p>
+            <p>{phone}</p>
+          </div>
         </div>
 
-        <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-          <p>{email}</p>
-          <p>{phone}</p>
+        <div className="border-t p-4 text-sm space-y-3">
+          <p className="text-muted-foreground">POSITION</p>
+          <p className="font-medium text-foreground">{role}</p>
+          <p className=" text-muted-foreground">ACCESS TYPE</p>
+          <span
+            className={
+              accessVariant === "owner"
+                ? "inline-flex rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive border border-destructive"
+                : "inline-flex rounded-lg bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-600  dark:text-orange-400"
+            }
+          >
+            {access}
+          </span>
         </div>
       </div>
-
-      <div className="border-t p-4 text-sm space-y-3">
-        <p className="text-muted-foreground">POSITION</p>
-        <p className="font-medium text-foreground">{role}</p>
-        <p className=" text-muted-foreground">ACCESS TYPE</p>
-        <span
-          className={
-            accessVariant === "owner"
-              ? "inline-flex rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive border border-destructive"
-              : "inline-flex rounded-lg bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-600  dark:text-orange-400"
-          }
-        >
-          {access}
-        </span>
-      </div>
-    </div>
+    </>
   );
 }
