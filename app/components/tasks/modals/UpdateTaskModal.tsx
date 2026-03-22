@@ -8,20 +8,16 @@ import {
     Loader2,
 } from 'lucide-react'
 import TiptapEditor from "@/app/components/ui/tiptap-editor"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/app/components/ui/popover"
 import UploadFile from '../../ui/UploadFIle'
 import { useWorkspace } from '@/libs/hooks/useWorkspace'
+import { getFileIcon } from '@/libs/utils'
 import api from '@/libs/api'
 
-interface CreateTaskModalProps {
+interface UpdateTaskModalProps {
     isOpen: boolean
     onClose: () => void
-    onTaskCreated?: () => void
-    initialStatus?: string
+    onTaskUpdated?: () => void
+    task: any
 }
 
 interface Member {
@@ -36,34 +32,44 @@ interface Member {
     job_role?: string
 }
 
-const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pending' }: CreateTaskModalProps) => {
+const formatDateLocal = (dateString?: string) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return ''
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+    return date.toISOString().slice(0, 16)
+}
+
+const UpdateTaskModal = ({ isOpen, onClose, onTaskUpdated, task }: UpdateTaskModalProps) => {
     const { currentWorkspace } = useWorkspace()
     const [members, setMembers] = useState<Member[]>([])
     const [loading, setLoading] = useState(false)
     const [submitting, setSubmitting] = useState(false)
-    const getLocalDatetime = () => {
-        const now = new Date()
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-        return now.toISOString().slice(0, 16)
-    }
 
-    const [formData, setFormData] = useState({
-        task_name: '',
-        task_description: '',
-        assigned_to: '',
-        priority: 'medium',
-        status: initialStatus,
-        start_date: getLocalDatetime(),
-        end_date: '',
-        percent_complete: 0,
+    const [formData, setFormData] = useState(() => ({
+        task_name: task?.task_name || '',
+        task_description: task?.task_description || '',
+        assigned_to: task?.assigned_user?.id || task?.assigned_to?.id || task?.assigned_to || '',
+        priority: task?.priority || 'medium',
+        start_date: formatDateLocal(task?.start_date),
+        end_date: formatDateLocal(task?.end_date),
+        percent_complete: task?.percent_complete || 0,
         attachments: [] as File[],
-    })
+    }))
 
     useEffect(() => {
-        if (isOpen) {
-            setFormData(prev => ({ ...prev, status: initialStatus }))
-        }
-    }, [isOpen, initialStatus])
+        if (!isOpen || !task) return
+        setFormData({
+            task_name: task.task_name || '',
+            task_description: task.task_description || '',
+            assigned_to: task.assigned_user?.id || task.assigned_to?.id || task.assigned_to || '',
+            priority: task.priority || 'medium',
+            start_date: formatDateLocal(task.start_date),
+            end_date: formatDateLocal(task.end_date),
+            percent_complete: task.percent_complete || 0,
+            attachments: [], // We usually don't pre-populate file inputs for security, users can add new ones
+        })
+    }, [isOpen, task])
 
     useEffect(() => {
         if (!isOpen || !currentWorkspace?.id) return
@@ -85,7 +91,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!currentWorkspace?.id) return
+        if (!currentWorkspace?.id || !task?.id) return
 
         try {
             setSubmitting(true)
@@ -94,39 +100,25 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
             formDataToSend.append('task_description', formData.task_description)
             if (formData.assigned_to) formDataToSend.append('assigned_to', formData.assigned_to)
             formDataToSend.append('priority', formData.priority)
-            formDataToSend.append('status', formData.status)
             if (formData.start_date) formDataToSend.append('start_date', formData.start_date)
             if (formData.end_date) formDataToSend.append('end_date', formData.end_date)
-            formDataToSend.append('percent_complete', formData.status === 'completed' ? '100' : formData.percent_complete.toString())
-
-            console.log("DEBUG: Outbound Task Payload -> Priority:", formData.priority, "| Status:", formData.status)
+            formDataToSend.append('percent_complete', formData.percent_complete.toString())
 
             formData.attachments.forEach((file) => {
                 formDataToSend.append('attachments', file)
             })
 
-            await api.post(`/tasks/${currentWorkspace.id}/tasks/`, formDataToSend)
-            setFormData({
-                task_name: '',
-                task_description: '',
-                assigned_to: '',
-                priority: 'medium',
-                status: initialStatus,
-                start_date: getLocalDatetime(),
-                end_date: '',
-                percent_complete: 0,
-                attachments: [],
-            })
-            onTaskCreated?.()
+            await api.put(`/tasks/${currentWorkspace.id}/tasks/${task.id}/`, formDataToSend)
+            onTaskUpdated?.()
             onClose()
         } catch (error) {
-            console.error('Failed to create task:', error)
+            console.error('Failed to update task:', error)
         } finally {
             setSubmitting(false)
         }
     }
 
-    if (!isOpen) return null
+    if (!isOpen || !task) return null
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -137,7 +129,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <ListChecks className="h-5 w-5" />
                         </div>
-                        <h2 className="text-xl font-bold text-foreground">Create New Task</h2>
+                        <h2 className="text-xl font-bold text-foreground">Update Task</h2>
                     </div>
                     <button
                         type="button"
@@ -156,7 +148,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
                             <label className="text-sm font-semibold text-foreground">Task Title</label>
                             <input
                                 type="text"
-                                placeholder="New Task"
+                                placeholder="Task Title"
                                 value={formData.task_name}
                                 onChange={(e) => setFormData({ ...formData, task_name: e.target.value })}
                                 className="rounded-xl border border-input bg-transparent px-4 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -222,6 +214,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold text-foreground">Description</label>
                             <TiptapEditor
+                                key={`editor-${task.id}`}
                                 value={formData.task_description}
                                 onChange={(val) => setFormData({ ...formData, task_description: val })}
                                 placeholder="Describe the task..."
@@ -262,12 +255,42 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
                             </div>
                         </div>
                         <UploadFile onFilesChange={(files) => setFormData({ ...formData, attachments: files })} />
+
+                        {/* Existing Attachments Display */}
+                        {task?.attachments?.length > 0 && (
+                            <div className="flex flex-col gap-2 rounded-xl border p-4 bg-muted/20">
+                                <label className="text-sm font-semibold text-foreground">Existing Attachments</label>
+                                <ul className="space-y-2 mt-2">
+                                    {task.attachments.map((att: any, idx: number) => {
+                                        const ext = att.file_name?.split('.').pop()?.toUpperCase() || 'FILE'
+                                        const isImage = ext.match(/^(JPEG|JPG|GIF|PNG|WEBP|SVG)$/i)
+                                        return (
+                                            <li key={att.id || idx} className="flex items-center justify-between rounded-lg border bg-card p-3 text-sm hover:bg-muted/50 transition-colors">
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="flex h-10 w-10 items-center justify-center shrink-0">
+                                                        {isImage ? (
+                                                            <img src={att.file_url || att.file} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100" />
+                                                        ) : (
+                                                            <img width="40" height="40" src={getFileIcon(att.file_name || att.file)} alt="File" className="object-contain" />
+                                                        )}
+                                                    </div>
+                                                    <a href={att.file_url || att.file} target="_blank" rel="noopener noreferrer" className="truncate font-medium text-foreground hover:text-primary hover:underline">
+                                                        {att.file_name || 'Attachment'}
+                                                    </a>
+                                                </div>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Footer */}
                 <div className="flex items-center justify-end gap-3 border-t p-6">
                     <button
+                        type="button"
                         onClick={onClose}
                         disabled={submitting}
                         className="rounded-xl px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
@@ -275,12 +298,12 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
                         Cancel
                     </button>
                     <button
-                        onClick={handleSubmit}
+                        type="submit"
                         disabled={submitting || !formData.task_name}
                         className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 disabled:opacity-50"
                     >
                         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Create Task
+                        Update Task
                     </button>
                 </div>
             </form>
@@ -288,4 +311,4 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
     )
 }
 
-export default CreateTaskModal
+export default UpdateTaskModal

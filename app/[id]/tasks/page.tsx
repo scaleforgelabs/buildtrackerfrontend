@@ -5,18 +5,14 @@ import {
   Layout,
   List,
   LayoutGrid,
-  Calendar,
   GitCommitHorizontal,
-  GanttChart,
   Plus,
   Upload
 } from 'lucide-react'
 import KanbanView from '@/app/components/tasks/views/KanbanView'
 import ListView from '@/app/components/tasks/views/ListView'
 import BoardView from '@/app/components/tasks/views/BoardView'
-import CalendarView from '@/app/components/tasks/views/CalendarView'
 import TimelineView from '@/app/components/tasks/views/TimelineView'
-import GanttView from '@/app/components/tasks/views/GanttView'
 import CreateTaskModal from '@/app/components/tasks/modals/CreateTaskModal'
 import { useWorkspace } from '@/libs/hooks/useWorkspace'
 import Papa from 'papaparse'
@@ -89,9 +85,7 @@ const TasksPage = () => {
     { id: 'kanban', label: 'Kanban', icon: Layout },
     { id: 'list', label: 'List', icon: List },
     { id: 'board', label: 'Board', icon: LayoutGrid },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'timeline', label: 'Timeline', icon: GitCommitHorizontal },
-    { id: 'gantt', label: 'Gantt', icon: GanttChart },
   ]
 
   const renderView = () => {
@@ -101,9 +95,7 @@ const TasksPage = () => {
       case 'kanban': return <KanbanView />
       case 'list': return <ListView />
       case 'board': return <BoardView />
-      case 'calendar': return <CalendarView />
       case 'timeline': return <TimelineView />
-      case 'gantt': return <GanttView />
       default: return <ListView />
     }
   }

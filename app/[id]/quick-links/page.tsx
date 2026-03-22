@@ -51,7 +51,7 @@ export default function QuickLinksPage() {
         }}
       />
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Quick Links - {currentWorkspace?.name || 'Loading...'}</h1>
           <p className="text-sm text-muted-foreground">
@@ -77,11 +77,22 @@ export default function QuickLinksPage() {
             {links.map((link: any) => (
               <QuickLinkCard
                 key={link.id}
+                id={link.id}
                 title={link.title}
                 url={link.url}
                 icon={link.icon}
                 category={link.category}
                 description={link.description}
+                onSaved={() => {
+                  if (currentWorkspace?.id) {
+                    quickLinksService.getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() }).then(res => setLinks(res.data.shared_links || []));
+                  }
+                }}
+                onDeleted={() => {
+                  if (currentWorkspace?.id) {
+                    quickLinksService.getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() }).then(res => setLinks(res.data.shared_links || []));
+                  }
+                }}
               />
             ))}
           </div>

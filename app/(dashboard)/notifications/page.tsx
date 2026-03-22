@@ -8,23 +8,23 @@ import { notificationsService } from "@/libs/api/services";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 
 interface Notification {
-  id: string;
-  user: string;
-  workspace: string;
-  action: string;
-  description: string;
-  note_type: string;
-  severity: 'info' | 'success' | 'warning' | 'error';
-  is_read: boolean;
-  created_at: string;
-  read_at: string | null;
+    id: string;
+    user: string;
+    workspace: string;
+    action: string;
+    description: string;
+    note_type: string;
+    severity: 'info' | 'success' | 'warning' | 'error';
+    is_read: boolean;
+    created_at: string;
+    read_at: string | null;
 }
 
 function formatTimeAgo(dateString: string): string {
     const date = new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
@@ -59,16 +59,16 @@ export default function NotificationsPage() {
         try {
             setLoading(true);
             setError(null);
-            
+
             console.log('📡 Making API call...', { activeTab, currentWorkspace: currentWorkspace?.id });
             console.log('🔍 notificationsService:', notificationsService);
-            
-            const response = activeTab === "all" 
+
+            const response = activeTab === "all"
                 ? await notificationsService.getNotifications()
-                : currentWorkspace 
+                : currentWorkspace
                     ? await notificationsService.getWorkspaceNotifications(currentWorkspace.id)
                     : await notificationsService.getNotifications();
-            
+
             console.log('🔔 Notifications API Response:', response.data);
             setNotifications(response.data.results.data);
         } catch (err: any) {
@@ -93,7 +93,7 @@ export default function NotificationsPage() {
         if (notification && !notification.is_read) {
             try {
                 await notificationsService.markAsRead(id);
-                setNotifications(prev => prev.map(n => 
+                setNotifications(prev => prev.map(n =>
                     n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
                 ));
             } catch (err) {
@@ -122,7 +122,7 @@ export default function NotificationsPage() {
             <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
                 <div className="text-center py-20">
                     <p className="text-red-600 font-medium">{error}</p>
-                    <button 
+                    <button
                         onClick={fetchNotifications}
                         className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
@@ -158,8 +158,8 @@ export default function NotificationsPage() {
                     <button
                         onClick={() => setActiveTab("all")}
                         className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${activeTab === "all"
-                                ? "bg-blue-50 text-blue-600 shadow-sm"
-                                : "text-muted-foreground hover:bg-muted"
+                            ? "bg-blue-50 text-blue-600 shadow-sm"
+                            : "text-muted-foreground hover:bg-muted"
                             }`}
                     >
                         All
@@ -173,8 +173,8 @@ export default function NotificationsPage() {
                         <button
                             onClick={() => setActiveTab("workspace")}
                             className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${activeTab === "workspace"
-                                    ? "bg-blue-50 text-blue-600 shadow-sm"
-                                    : "text-muted-foreground hover:bg-muted"
+                                ? "bg-blue-50 text-blue-600 shadow-sm"
+                                : "text-muted-foreground hover:bg-muted"
                                 }`}
                         >
                             {currentWorkspace.name}&apos;s Workspace
@@ -226,13 +226,12 @@ export default function NotificationsPage() {
                                     </p>
                                 )}
 
-                                <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        notification.severity === 'error' ? 'bg-red-100 text-red-700' :
-                                        notification.severity === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                                        notification.severity === 'success' ? 'bg-green-100 text-green-700' :
-                                        'bg-blue-100 text-blue-700'
-                                    }`}>
+                                <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5 font-medium">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${notification.severity === 'error' ? 'bg-red-100 text-red-700' :
+                                            notification.severity === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                                                notification.severity === 'success' ? 'bg-green-100 text-green-700' :
+                                                    'bg-blue-100 text-blue-700'
+                                        }`}>
                                         {notification.severity}
                                     </span>
                                     {notification.note_type && (

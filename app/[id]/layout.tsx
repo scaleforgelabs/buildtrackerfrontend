@@ -7,6 +7,7 @@ import TopBar from "../components/Topbar";
 import { WorkspaceProvider, useWorkspace } from "@/libs/hooks/useWorkspace";
 import ClientWrapper from "@/app/components/ClientWrapper";
 import { useSearchHighlight } from "@/libs/hooks/useSearchHighlight";
+import AuthGuard from "@/app/components/AuthGuard";
 
 function SearchHighlighter({ containerRef }: { containerRef: React.RefObject<HTMLElement | null> }) {
   useSearchHighlight(containerRef);
@@ -83,11 +84,13 @@ export default function WorkspaceLayout({
 }) {
   return (
     <ClientWrapper>
-      <WorkspaceProvider>
-        <WorkspaceLayoutContent>
-          {children}
-        </WorkspaceLayoutContent>
-      </WorkspaceProvider>
+      <AuthGuard>
+        <WorkspaceProvider>
+          <WorkspaceLayoutContent>
+            {children}
+          </WorkspaceLayoutContent>
+        </WorkspaceProvider>
+      </AuthGuard>
     </ClientWrapper>
   );
 }

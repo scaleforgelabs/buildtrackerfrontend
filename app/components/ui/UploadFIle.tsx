@@ -1,5 +1,6 @@
 import { Upload, X, CheckCircle2, Loader2 } from 'lucide-react'
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
+import { getFileIcon } from '@/libs/utils'
 
 interface UploadFileProps {
     onFilesChange?: (files: File[]) => void
@@ -7,6 +8,16 @@ interface UploadFileProps {
 
 interface FileWithProgress extends File {
     progress?: number
+}
+
+const ImagePreview = ({ file }: { file: File }) => {
+    const [previewUrl, setPreviewUrl] = useState<string>('')
+    useEffect(() => {
+        const url = URL.createObjectURL(file)
+        setPreviewUrl(url)
+        return () => URL.revokeObjectURL(url)
+    }, [file])
+    return previewUrl ? <img src={previewUrl} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100" /> : null
 }
 
 const UploadFile = ({ onFilesChange }: UploadFileProps) => {
@@ -17,30 +28,12 @@ const UploadFile = ({ onFilesChange }: UploadFileProps) => {
         fileInputRef.current?.click()
     }
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || [])
-        const filesWithProgress = files.map(file => {
-            const fileWithProgress = file as FileWithProgress
-            fileWithProgress.progress = 0
-            return fileWithProgress
-        })
-        
-        const updated = [...uploadedFiles, ...filesWithProgress]
-        setUploadedFiles(updated)
-        
-        filesWithProgress.forEach((file, index) => {
-            simulateUpload(uploadedFiles.length + index)
-        })
-        
-        onFilesChange?.(updated)
-    }
-
     const simulateUpload = (index: number) => {
         let progress = 0
         const interval = setInterval(() => {
             progress += Math.random() * 40
             if (progress > 100) progress = 100
-            
+
             setUploadedFiles(prev => {
                 const updated = [...prev]
                 if (updated[index]) {
@@ -48,9 +41,27 @@ const UploadFile = ({ onFilesChange }: UploadFileProps) => {
                 }
                 return updated
             })
-            
+
             if (progress >= 100) clearInterval(interval)
         }, 300)
+    }
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || [])
+        const filesWithProgress = files.map(file => {
+            const fileWithProgress = file as FileWithProgress
+            fileWithProgress.progress = 0
+            return fileWithProgress
+        })
+
+        const updated = [...uploadedFiles, ...filesWithProgress]
+        setUploadedFiles(updated)
+
+        filesWithProgress.forEach((file, index) => {
+            simulateUpload(uploadedFiles.length + index)
+        })
+
+        onFilesChange?.(updated)
     }
 
     const handleRemove = (index: number) => {
@@ -89,13 +100,17 @@ const UploadFile = ({ onFilesChange }: UploadFileProps) => {
                     {uploadedFiles.map((file, index) => {
                         const isComplete = (file.progress || 0) >= 100
                         const fileExt = file.name.split('.').pop()?.toUpperCase() || 'FILE'
-                        const bgColor = fileExt === 'PDF' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'
-                        
+                        const isImage = file.type.startsWith('image/')
+
                         return (
                             <div key={index} className="flex items-center justify-between rounded-xl border bg-card p-3">
                                 <div className="flex items-center gap-3 flex-1">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${bgColor}`}>
-                                        <span className="text-xs font-bold">{fileExt}</span>
+                                    <div className="flex h-10 w-10 items-center justify-center shrink-0">
+                                        {isImage ? (
+                                            <ImagePreview file={file} />
+                                        ) : (
+                                            <img width="40" height="40" src={getFileIcon(file.name)} alt="File" className="object-contain" />
+                                        )}
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm font-medium text-foreground">{file.name}</p>

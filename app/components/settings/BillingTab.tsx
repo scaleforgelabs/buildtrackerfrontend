@@ -119,7 +119,7 @@ export const BillingTab = () => {
                     </div>
                 </div>
 
-                <div className="bg-muted/50 rounded-2xl p-8 border border-border flex items-center justify-between shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+                <div className="bg-muted/50 rounded-2xl p-6 md:p-8 border border-border flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-12 flex-1">
                         <div className="space-y-2">
                             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Your Plan</p>
@@ -152,7 +152,7 @@ export const BillingTab = () => {
                             <p className="font-bold text-foreground text-base capitalize">{subscription?.payment_provider || 'N/A'}</p>
                         </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 ml-8">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 ml-0 xl:ml-8 w-full sm:w-auto">
                         <Button
                             onClick={handleUpgrade}
                             className="px-8 h-11 bg-primary hover:bg-primary/90 shadow-md font-bold rounded-xl whitespace-nowrap hidden sm:block"
@@ -192,7 +192,7 @@ export const BillingTab = () => {
                     </p>
                 </div>
 
-                <div className="rounded-2xl border border-border overflow-hidden shadow-sm">
+                <div className="rounded-2xl border border-border overflow-x-auto shadow-sm">
                     <Table>
                         <TableHeader className="bg-muted border-b border-border">
                             <TableRow className="hover:bg-transparent border-none">
@@ -260,7 +260,7 @@ export const BillingTab = () => {
                     </p>
                 </div>
 
-                <div className="rounded-2xl border border-border overflow-hidden shadow-sm">
+                <div className="rounded-2xl border border-border overflow-x-auto shadow-sm">
                     <Table>
                         <TableHeader className="bg-muted border-b border-border">
                             <TableRow className="hover:bg-transparent border-none">

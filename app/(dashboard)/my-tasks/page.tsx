@@ -92,7 +92,7 @@ const MyTasksPage = () => {
     <div className="min-h-screen bg-muted">
       {/* Header */}
       <div className="">
-        <div className="px-8 py-8 flex justify-between items-center">
+        <div className="px-4 md:px-8 py-6 md:py-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-card-foreground">
               My Task
@@ -103,7 +103,7 @@ const MyTasksPage = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="mt-6 flex gap-4">
+          <div className="flex gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
             <button
               onClick={handleClearAll}
               className="flex items-center gap-2 rounded-full border border-primary px-6 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
@@ -121,7 +121,7 @@ const MyTasksPage = () => {
       </div>
 
       {/* Tasks Container */}
-      <div className="p-8 m-8 rounded-2xl bg-background ">
+      <div className="p-4 md:p-8 mx-4 md:mx-8 mb-8 mt-2 md:mt-0 rounded-2xl bg-background ">
         {loading ? (
           <div className="rounded-xl border border-dashed border-border p-12 text-center">
             <p className="text-muted-foreground">
@@ -180,10 +180,10 @@ const MyTasksPage = () => {
                       </div>
                       <p
                         className={`text-sm font-medium transition-all ${task.completed
-                            ? "line-through text-muted-foreground"
-                            : isOverdue
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-card-foreground"
+                          ? "line-through text-muted-foreground"
+                          : isOverdue
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-card-foreground"
                           }`}
                       >
                         {task.title}

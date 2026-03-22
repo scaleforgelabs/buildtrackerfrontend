@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
+import Link from '@tiptap/extension-link'
 import {
     Bold,
     Italic,
@@ -30,6 +31,12 @@ const TiptapEditor = ({
             Placeholder.configure({
                 placeholder,
             }),
+            Link.configure({
+                openOnClick: false,
+                HTMLAttributes: {
+                    class: 'text-primary underline cursor-pointer',
+                },
+            }),
         ],
         content: value,
         editorProps: {
@@ -39,7 +46,7 @@ const TiptapEditor = ({
             },
         },
         onUpdate: ({ editor }) => {
-            onChange(editor.getText())
+            onChange(editor.getHTML())
         },
         immediatelyRender: false,
     })
@@ -53,14 +60,18 @@ const TiptapEditor = ({
             {/* Toolbar */}
             <div className="flex items-center gap-1 border-b bg-muted/50 p-2 overflow-x-auto">
                 <Toggle
+                    type="button"
                     size="sm"
+                    className="data-[state=on]:bg-primary/20 data-[state=on]:text-primary"
                     pressed={editor.isActive('bold')}
                     onPressedChange={() => editor.chain().focus().toggleBold().run()}
                 >
                     <Bold className="h-4 w-4" />
                 </Toggle>
                 <Toggle
+                    type="button"
                     size="sm"
+                    className="data-[state=on]:bg-primary/20 data-[state=on]:text-primary"
                     pressed={editor.isActive('italic')}
                     onPressedChange={() => editor.chain().focus().toggleItalic().run()}
                 >
@@ -70,14 +81,18 @@ const TiptapEditor = ({
                 <div className="mx-1 h-4 w-px bg-border"></div>
 
                 <Toggle
+                    type="button"
                     size="sm"
+                    className="data-[state=on]:bg-primary/20 data-[state=on]:text-primary"
                     pressed={editor.isActive('bulletList')}
                     onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
                 >
                     <List className="h-4 w-4" />
                 </Toggle>
                 <Toggle
+                    type="button"
                     size="sm"
+                    className="data-[state=on]:bg-primary/20 data-[state=on]:text-primary"
                     pressed={editor.isActive('orderedList')}
                     onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
                 >
@@ -87,9 +102,10 @@ const TiptapEditor = ({
                 <div className="mx-1 h-4 w-px bg-border"></div>
 
                 <button
+                    type="button"
                     onClick={() => {
                         const previousUrl = editor.getAttributes('link').href
-                        const url = window.prompt('URL', previousUrl)
+                        const url = window.prompt('URL', previousUrl || '')
 
                         // cancelled
                         if (url === null) {
@@ -97,15 +113,26 @@ const TiptapEditor = ({
                         }
 
                         // empty
-                        if (url === '') {
+                        if (url.trim() === '') {
                             editor.chain().focus().extendMarkRange('link').unsetLink().run()
                             return
                         }
 
-                        // update link
-                        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+                        // format URL
+                        let validUrl = url.trim()
+                        if (!/^https?:\/\//i.test(validUrl) && !/^mailto:/i.test(validUrl)) {
+                            validUrl = 'https://' + validUrl
+                        }
+
+                        // if no text is selected, insert the URL as literal text
+                        if (editor.state.selection.empty) {
+                            editor.chain().focus().insertContent(`<a href="${validUrl}">${validUrl}</a>`).run()
+                        } else {
+                            // update link on selected text
+                            editor.chain().focus().extendMarkRange('link').setLink({ href: validUrl }).run()
+                        }
                     }}
-                    className={`rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground ${editor.isActive('link') ? 'bg-muted text-foreground' : ''}`}
+                    className={`rounded p-1.5 hover:bg-muted hover:text-foreground ${editor.isActive('link') ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}
                 >
                     <LinkIcon className="h-4 w-4" />
                 </button>
@@ -113,6 +140,7 @@ const TiptapEditor = ({
                 <div className="flex-1"></div>
 
                 <button
+                    type="button"
                     onClick={() => editor.chain().focus().undo().run()}
                     disabled={!editor.can().chain().focus().undo().run()}
                     className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
@@ -120,6 +148,7 @@ const TiptapEditor = ({
                     <RotateCcw className="h-4 w-4" />
                 </button>
                 <button
+                    type="button"
                     onClick={() => editor.chain().focus().redo().run()}
                     disabled={!editor.can().chain().focus().redo().run()}
                     className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"

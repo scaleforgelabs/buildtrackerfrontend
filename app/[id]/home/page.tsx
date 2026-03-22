@@ -75,6 +75,47 @@ interface Task {
   priority: string;
 }
 
+function DashboardSkeleton() {
+  return (
+    <section className="bg-muted w-full rounded-2xl animate-pulse">
+      <div className="bg-muted rounded-2xl p-4 lg:p-6 space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-64"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-96"></div>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 bg-gray-200 dark:bg-gray-800 rounded w-32"></div>
+            <div className="h-9 bg-gray-200 dark:bg-gray-800 rounded w-24"></div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-2xl bg-gray-200 dark:bg-gray-800 h-32 p-4 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-20"></div>
+                <div className="w-9 h-9 rounded-full bg-gray-300 dark:bg-gray-700"></div>
+              </div>
+              <div className="h-10 bg-gray-300 dark:bg-gray-700 rounded w-16"></div>
+              <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-24"></div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2 bg-gray-200 dark:bg-gray-800 rounded-2xl p-4 h-80 min-w-0"></div>
+          <div className="bg-gray-200 dark:bg-gray-800 rounded-2xl p-4 h-80 min-w-0"></div>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2 bg-gray-200 dark:bg-gray-800 rounded-2xl p-4 h-64 min-w-0"></div>
+          <div className="bg-gray-200 dark:bg-gray-800 rounded-2xl p-4 h-64 min-w-0"></div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function DashboardSection() {
   const { currentWorkspace } = useWorkspace();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -216,6 +257,10 @@ export default function DashboardSection() {
     document.body.removeChild(link);
   };
 
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <section className="bg-muted w-full rounded-2xl">
       <div className="bg-muted rounded-2xl p-4 lg:p-6 space-y-6">
@@ -295,7 +340,7 @@ export default function DashboardSection() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="xl:col-span-2 bg-background rounded-2xl p-4">
+          <div className="xl:col-span-2 bg-background rounded-2xl p-4 min-w-0">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="w-5 h-5 text-primary" />
               <h3 className="font-medium">Performance Trend</h3>
@@ -305,7 +350,7 @@ export default function DashboardSection() {
             </div>
           </div>
 
-          <div className="bg-background rounded-2xl p-4">
+          <div className="bg-background rounded-2xl p-4 min-w-0">
             <div className="flex items-center gap-2 mb-4">
               <PieChart className="w-5 h-5 text-primary" />
               <h3 className="font-medium">Status Overview</h3>
@@ -317,7 +362,7 @@ export default function DashboardSection() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="xl:col-span-2 bg-background rounded-2xl p-4">
+          <div className="xl:col-span-2 bg-background rounded-2xl p-4 min-w-0">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium flex gap-3 items-center">
                 <History className="w-5 h-5 text-primary" />
@@ -354,7 +399,7 @@ export default function DashboardSection() {
               <div className="bg-green-500 w-[50%] rounded-r-md" style={{ width: `${lowPercent}%` }} />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <Priority
                 label="High"
                 value={String(highPriority)}
@@ -520,14 +565,14 @@ function StatusDonutChart({ data }: { data: any[] }) {
 
 function Priority({ label, value, percentage, color }: { label: string; value: string; percentage: string; color: string }) {
   return (
-    <div className="rounded-xl border border-border p-3 text-right flex flex-col gap-15">
-      <div className="flex items-center justify-left gap-1 mb-2">
-        <div className={`w-2 h-2 rounded-full ${color.replace("text-", "bg-")}`} />
-        <span className="text-sm font-medium">{label}</span>
+    <div className="rounded-xl border border-border p-2 sm:p-3 text-right flex flex-col justify-between gap-4 h-full">
+      <div className="flex items-center justify-start gap-1 mb-2">
+        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${color.replace("text-", "bg-")}`} />
+        <span className="text-xs sm:text-sm font-medium truncate">{label}</span>
       </div>
       <div>
-        <p className="text-sm text-muted-foreground mb-1">{percentage}</p>
-        <p className="text-4xl font-semibold">{value}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground mb-1">{percentage}</p>
+        <p className="text-2xl sm:text-4xl font-semibold">{value}</p>
       </div>
     </div>
   );

@@ -47,9 +47,10 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
                 <h3 className="text-sm font-bold leading-tight mt-1">{task.task_name}</h3>
             </CardHeader>
             <CardContent className="space-y-3 px-4 pb-4 pt-0">
-                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                    {task.task_description}
-                </p>
+                <div
+                    className="text-xs text-muted-foreground leading-relaxed line-clamp-2 prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-ul:my-0"
+                    dangerouslySetInnerHTML={{ __html: task.task_description || "" }}
+                />
 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">

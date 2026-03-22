@@ -208,7 +208,7 @@ export default function ReportsPage() {
                         </ResponsiveContainer>
                         {/* Chart Labels Overlay */}
                         <div className="absolute top-0 left-0 text-xs font-semibold text-muted-foreground">Pending <span className="text-[#F97316]">1</span></div>
-                        <div className="absolute top-1/2 -right-4 text-xs font-semibold text-muted-foreground -translate-y-1/2">Completed <span className="text-[#22C55E]">3</span></div>
+                        <div className="absolute top-1/2 right-0 text-xs font-semibold text-muted-foreground -translate-y-1/2">Completed <span className="text-[#22C55E]">3</span></div>
                         <div className="absolute bottom-0 left-0 text-xs font-semibold text-muted-foreground">In Progress <span className="text-[#3B82F6]">4</span></div>
                     </div>
                 </div>

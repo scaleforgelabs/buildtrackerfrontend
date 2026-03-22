@@ -31,7 +31,7 @@ export default function CreateWorkspaceModal({ isOpen, onClose, required = false
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { createWorkspace } = useWorkspace();
+  const { createWorkspace, switchWorkspace } = useWorkspace();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +39,11 @@ export default function CreateWorkspaceModal({ isOpen, onClose, required = false
     setError('');
 
     try {
-      await createWorkspace(formData);
+      const newWorkspace = await createWorkspace(formData);
       setFormData({ name: '', description: '', type: 'Software' });
       onClose();
+      // automatically switch so the dashboard refreshes correctly
+      switchWorkspace(newWorkspace);
     } catch (err: any) {
       setError(err.message || 'Failed to create workspace');
     } finally {

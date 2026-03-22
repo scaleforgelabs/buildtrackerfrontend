@@ -83,7 +83,7 @@ export default function TopBar() {
 
   return (
     <header className="z-30 bg-background lg:left-80">
-      <div className="flex items-center justify-between rounded-2xl bg-muted px-3 md:px-6 py-3 gap-2">
+      <div className="flex items-center justify-between rounded-2xl bg-muted pl-14 pr-3 md:px-6 py-2 md:py-3 gap-2">
         {/* Search */}
         <div className="relative flex-1 max-w-xl" ref={dropdownRef}>
           <div className="flex items-center gap-2 bg-card rounded-full px-4 py-3">

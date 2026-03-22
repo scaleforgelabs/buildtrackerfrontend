@@ -46,7 +46,7 @@ interface WorkspaceContextType {
   loading: boolean;
   error: string | null;
   fetchWorkspaces: () => Promise<void>;
-  createWorkspace: (data: { name: string; description?: string; type: "Construction" | "Software" | "Event" | "Other" }) => Promise<void>;
+  createWorkspace: (data: { name: string; description?: string; type: "Construction" | "Software" | "Event" | "Other" }) => Promise<Workspace>;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
   switchWorkspace: (workspace: Workspace) => void;
 }
@@ -125,6 +125,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const newWorkspace = response.data.workspace;
       setWorkspaces(prev => [newWorkspace, ...prev]);
       setCurrentWorkspace(newWorkspace);
+      return newWorkspace;
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create workspace');
       throw err;

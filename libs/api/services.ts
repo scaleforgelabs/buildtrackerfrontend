@@ -255,6 +255,12 @@ export const quickLinksService = {
   deleteQuickLink: (userId: string | number, id: string) =>
     api.delete(`/quicklinks/users/${userId}/quick-links/${id}/`),
 
+  updateSharedQuickLink: (workspaceId: string, id: string, data: any) =>
+    api.put(`/quicklinks/workspaces/${workspaceId}/quick-links/shared/${id}/`, data),
+
+  deleteSharedQuickLink: (workspaceId: string, id: string) =>
+    api.delete(`/quicklinks/workspaces/${workspaceId}/quick-links/shared/${id}/`),
+
   reorderQuickLinks: (userId: string | number, data: any) =>
     api.post(`/quicklinks/users/${userId}/quick-links/reorder/`, data),
 };

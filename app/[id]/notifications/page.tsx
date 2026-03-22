@@ -65,6 +65,11 @@ export default function NotificationsPage() {
                 }
             }
 
+            const stripHtmlTags = (str: string | undefined): string | undefined => {
+                if (!str) return str;
+                return str.replace(/<[^>]*>?/gm, '');
+            };
+
             return {
                 id: notification.id,
                 user: notification.user_name || "User",
@@ -83,7 +88,7 @@ export default function NotificationsPage() {
                     notification.note_type === 'deadline_approaching' ? 'comment' :
                         notification.note_type?.includes('upload') ? 'upload' :
                             notification.note_type?.includes('add') ? 'add' : 'comment',
-                content: notification.description,
+                content: stripHtmlTags(notification.description),
                 assignedTo: assignedTo,
                 fileCheck: notification.note_type?.includes('upload') || false,
                 targetLink: notification.note_type?.includes('add') ? "#" : undefined
