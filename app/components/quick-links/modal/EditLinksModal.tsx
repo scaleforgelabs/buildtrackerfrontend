@@ -76,9 +76,14 @@ export default function EditLinksModal({
         setLoading(true);
         setError("");
 
+        let finalUrl = url;
+        if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+            finalUrl = `https://${finalUrl}`;
+        }
+
         const payload = {
             title: name,
-            url,
+            url: finalUrl,
             category,
             description,
             icon: selectedIcon?.icon || link?.icon || "",
@@ -94,11 +99,17 @@ export default function EditLinksModal({
             onClose();
         } catch (err: any) {
             console.error("Failed to edit quick link:", err);
-            setError(
-                err?.response?.data?.error ||
-                err?.response?.data?.detail ||
-                "Failed to update link. Please try again."
-            );
+            const resData = err?.response?.data;
+            let errorMessage = "Failed to update link. Please try again.";
+
+            if (resData?.error) errorMessage = resData.error;
+            else if (resData?.detail) errorMessage = resData.detail;
+            else if (resData && typeof resData === 'object') {
+                const firstVal = Object.values(resData)[0];
+                if (Array.isArray(firstVal)) errorMessage = firstVal[0] as string;
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }

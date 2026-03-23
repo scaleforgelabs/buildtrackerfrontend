@@ -14,6 +14,7 @@ import {
     PopoverTrigger,
 } from "@/app/components/ui/popover"
 import UploadFile from '../../ui/UploadFIle'
+import toast from 'react-hot-toast'
 import { useWorkspace } from '@/libs/hooks/useWorkspace'
 import api from '@/libs/api'
 
@@ -106,6 +107,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
             })
 
             await api.post(`/tasks/${currentWorkspace.id}/tasks/`, formDataToSend)
+            toast.success("Task created successfully")
             setFormData({
                 task_name: '',
                 task_description: '',
@@ -265,9 +267,9 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="flex items-center justify-end gap-3 border-t p-6">
                     <button
+                        type="button"
                         onClick={onClose}
                         disabled={submitting}
                         className="rounded-xl px-6 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
@@ -275,7 +277,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, initialStatus = 'pend
                         Cancel
                     </button>
                     <button
-                        onClick={handleSubmit}
+                        type="submit"
                         disabled={submitting || !formData.task_name}
                         className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 disabled:opacity-50"
                     >
