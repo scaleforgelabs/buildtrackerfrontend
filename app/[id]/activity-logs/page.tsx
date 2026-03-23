@@ -122,11 +122,11 @@ export default function ActivityLogsPage() {
             </div>
 
             {/* Main Content Table Area */}
-            <div className="rounded-[2.5rem] bg-card p-4 md:p-8 border border-border shadow-sm">
+            <div className="md:rounded-[2.5rem] rounded-md bg-card p-4 md:p-8 border border-border shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-muted rounded-2xl overflow-hidden">
+                            <tr className="bg-muted md:rounded-2xl rounded-md overflow-hidden">
                                 <th className="px-4 first:rounded-l-2xl">
                                     <input
                                         type="checkbox"

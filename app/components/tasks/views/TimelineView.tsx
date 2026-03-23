@@ -154,37 +154,49 @@ function TimelineViewContent() {
               }
             }}
             className={`
-                          flex items-center gap-4 p-4 rounded-lg 
-                          bg-muted transition-all duration-200
-                          hover:shadow-md hover:bg-opacity-80 cursor-pointer
-                      `}
+    flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg
+    bg-muted transition-all duration-200
+    hover:shadow-md hover:bg-opacity-80 cursor-pointer
+  `}
           >
+            {/* Priority Bar */}
             <div
-              className={`h-9 w-1 ${priorityBorderColors[priorityLabel] || priorityBorderColors.Medium}
-                           rounded-t-full rounded-b-full`}
+              className={`
+      hidden sm:block h-9 w-1 
+      ${priorityBorderColors[priorityLabel] || priorityBorderColors.Medium}
+      rounded-full shrink-0
+    `}
             ></div>
-            {/* Main Content Container */}
-            <div className="flex items-center min-w-0">
-              {/* Ticket and Title Row */}
-              <div className="flex items-start gap-3">
-                <span className="text-xs font-bold text-[var(--primary)] whitespace-nowrap">
+
+            {/* Main Content */}
+            <div className="flex flex-col sm:flex-row sm:items-center min-w-0 flex-1 gap-2 sm:gap-3">
+              {/* Top Row (Ticket + Title) */}
+              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                <span className="text-[10px] sm:text-xs font-bold text-[var(--primary)] whitespace-nowrap">
                   {task.ticket_number}
                 </span>
-                <h3 className="text-sm font-bold text-[var(--card-foreground)] leading-tight flex-1 line-clamp-1">
+
+                <h3 className="text-xs sm:text-sm font-bold text-[var(--card-foreground)] leading-tight line-clamp-2 sm:line-clamp-1 break-words">
                   {task.task_name}
                 </h3>
               </div>
 
-              {/* Author and Meta Info Row */}
-              <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)] ml-3">
-                <span className="font-medium">{task.assigned_user.first_name}</span>
+              {/* Meta Info */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] sm:text-xs text-[var(--muted-foreground)] sm:ml-3">
+                <span className="font-medium truncate max-w-[120px] sm:max-w-none">
+                  {task.assigned_user.first_name}
+                </span>
+
                 <span className="text-[var(--border)]">•</span>
-                <span className="whitespace-nowrap">Due: {formatDate(task.end_date)}</span>
+
+                <span className="whitespace-nowrap">
+                  Due: {formatDate(task.end_date)}
+                </span>
               </div>
             </div>
 
-            {/* Right Side Metrics and Badges */}
-            <div className="flex items-center gap-3 ml-auto">
+            {/* Right Side */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 sm:ml-auto">
               {/* Status Dropdown */}
               <div className="relative">
                 <button
@@ -193,19 +205,19 @@ function TimelineViewContent() {
                     setOpenDropdown(openDropdown === task.id ? null : task.id);
                   }}
                   className={`
-                    flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold 
-                    border shadow-none whitespace-nowrap transition-all
-                    ${statusBadgeStyles[statusLabel] || statusBadgeStyles.Pending}
-                    cursor-pointer hover:opacity-80
-                  `}
+          flex items-center gap-1 px-2 py-1 rounded-md text-[10px] sm:text-xs font-semibold
+          border shadow-none whitespace-nowrap transition-all
+          ${statusBadgeStyles[statusLabel] || statusBadgeStyles.Pending}
+          cursor-pointer hover:opacity-80
+        `}
                 >
                   {statusLabel}
                   <ChevronDown className="h-3 w-3" />
                 </button>
 
-                {/* Dropdown Menu */}
+                {/* Dropdown */}
                 {openDropdown === task.id && (
-                  <div className="absolute top-full right-0 mt-2 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg z-50 min-w-[140px]">
+                  <div className="absolute right-0 top-full mt-2 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-lg z-50 min-w-[130px] sm:min-w-[140px]">
                     {statusOptions.map((statusOpt) => (
                       <button
                         key={statusOpt.value}
@@ -215,13 +227,14 @@ function TimelineViewContent() {
                           setOpenDropdown(null);
                         }}
                         className={`
-                          w-full text-left px-4 py-2.5 text-xs font-medium
-                          transition-colors first:rounded-t-lg last:rounded-b-lg
-                          ${task.status === statusOpt.value
-                            ? "bg-[var(--muted)] text-[var(--card-foreground)]"
-                            : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]/50"
-                          }
-                        `}
+                w-full text-left px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-medium
+                transition-colors first:rounded-t-lg last:rounded-b-lg
+                ${
+                  task.status === statusOpt.value
+                    ? "bg-[var(--muted)] text-[var(--card-foreground)]"
+                    : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]/50"
+                }
+              `}
                       >
                         {statusOpt.label}
                       </button>
@@ -233,10 +246,10 @@ function TimelineViewContent() {
               {/* Priority Badge */}
               <Badge
                 className={`
-                                  rounded-md px-2.5 py-0.5 text-xs font-semibold 
-                                  border shadow-none whitespace-nowrap
-                                  ${priorityBadgeStyles[priorityLabel] || priorityBadgeStyles.Medium}
-                              `}
+        rounded-md px-2 py-0.5 text-[10px] sm:text-xs font-semibold
+        border shadow-none whitespace-nowrap
+        ${priorityBadgeStyles[priorityLabel] || priorityBadgeStyles.Medium}
+      `}
               >
                 {priorityLabel}
               </Badge>

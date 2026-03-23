@@ -131,34 +131,66 @@ export default function TeamManagementPage() {
         }}
       />
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Team - {currentWorkspace?.name || 'Loading...'}</h1>
-          <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        {/* Left Section */}
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground truncate">
+            Team - {currentWorkspace?.name || "Loading..."}
+          </h1>
+
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Manage your team members and their assignments
           </p>
         </div>
-        <button onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow">
-          <Plus className="h-4 w-4" />
-          Invite <span className="hidden md:flex">
-            Member
-          </span>
-        </button>
-      </div>
 
+        {/* Button */}
+        <div className="flex justify-start sm:justify-end">
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-3 sm:px-4 py-2 text-sm font-medium text-primary-foreground shadow w-full sm:w-auto"
+          >
+            <Plus className="h-4 w-4" />
+            Invite
+            <span className="hidden md:flex">Member</span>
+          </button>
+        </div>
+      </div>
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Members" value={stats.totalMembers.toString()} subtitle="Complete Team" icon={<Users />} />
-        <StatCard title="Admin" value={stats.adminCount.toString()} subtitle="Admin Access" icon={<Shield />} />
-        <StatCard title="Available" value={stats.activeCount.toString()} subtitle="Ready to work" icon={<CheckCircle />} />
-        <StatCard title="Pending Invite" value={stats.pendingCount.toString()} subtitle="Pending Invitation" icon={<UserPlus />} />
+        <StatCard
+          title="Total Members"
+          value={stats.totalMembers.toString()}
+          subtitle="Complete Team"
+          icon={<Users />}
+        />
+        <StatCard
+          title="Admin"
+          value={stats.adminCount.toString()}
+          subtitle="Admin Access"
+          icon={<Shield />}
+        />
+        <StatCard
+          title="Available"
+          value={stats.activeCount.toString()}
+          subtitle="Ready to work"
+          icon={<CheckCircle />}
+        />
+        <StatCard
+          title="Pending Invite"
+          value={stats.pendingCount.toString()}
+          subtitle="Pending Invitation"
+          icon={<UserPlus />}
+        />
       </div>
 
       {/* Team Grid */}
       {loading ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-2xl bg-card shadow-sm p-4 animate-pulse">
+            <div
+              key={i}
+              className="rounded-2xl bg-card shadow-sm p-4 animate-pulse"
+            >
               <div className="h-20 w-20 bg-gray-200 rounded-xl mb-4"></div>
               <div className="h-4 bg-gray-200 rounded mb-2"></div>
               <div className="h-3 bg-gray-200 rounded mb-4"></div>
@@ -175,12 +207,12 @@ export default function TeamManagementPage() {
               id={member.id}
               userId={member.user.id}
               name={`${member.user.first_name} ${member.user.last_name}`}
-              role={member.job_role || 'Team Member'}
+              role={member.job_role || "Team Member"}
               access={member.role}
               email={member.user.email}
-              phone={member.phone || 'N/A'}
+              phone={member.phone || "N/A"}
               user={member.user}
-              accessVariant={member.role === 'Owner' ? 'owner' : 'member'}
+              accessVariant={member.role === "Owner" ? "owner" : "member"}
               status={member.user_status}
               onSaved={fetchMembers}
               onDeleted={fetchMembers}

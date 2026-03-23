@@ -434,24 +434,24 @@ export default function ReportsPage() {
                                         <div className="w-32 flex-shrink-0">
                                             <p className="text-base font-medium text-foreground truncate" title={member.name}>{member.name}</p>
                                         </div>
-                                        <div className="flex-1 flex gap-2 h-12">
+                                        <div className="flex-1 flex gap-2 ">
                                             {/* Completed */}
                                             <div
-                                                className="bg-[#10B981] h-full rounded-lg flex items-center px-3 text-sm font-bold text-foreground/80 transition-all hover:opacity-90"
+                                                className="bg-[#10B981] h-full rounded-lg flex items-center px-3 py-2 md:py-3 text-sm font-bold text-foreground/80 transition-all hover:opacity-90"
                                                 style={{ flex: member.completionStats.completed }}
                                             >
                                                 {member.completionStats.completed}
                                             </div>
                                             {/* In Progress */}
                                             <div
-                                                className="bg-[#60A5FA] h-full rounded-lg flex items-center px-3 text-sm font-bold text-foreground/80 transition-all hover:opacity-90"
+                                                className="bg-[#60A5FA] h-full rounded-lg flex items-center px-3 py-2 md:py-3 text-sm font-bold text-foreground/80 transition-all hover:opacity-90"
                                                 style={{ flex: member.completionStats.inProgress }}
                                             >
                                                 {member.completionStats.inProgress}
                                             </div>
                                             {/* Not Started */}
                                             <div
-                                                className="bg-[#E5E7EB] h-full rounded-lg flex items-center px-3 text-sm font-bold text-foreground/80 transition-all hover:opacity-90"
+                                                className="bg-[#E5E7EB] h-full rounded-lg flex items-center px-3 py-2 md:py-3 text-sm font-bold text-foreground/80 transition-all hover:opacity-90"
                                                 style={{ flex: member.completionStats.notStarted }}
                                             >
                                                 {member.completionStats.notStarted}
