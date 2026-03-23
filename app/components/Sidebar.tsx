@@ -16,6 +16,8 @@ import {
   Menu,
   X,
   Bell,
+  ListCheck,
+  ListChecks,
 } from "lucide-react";
 import { Images } from "@/public";
 import { useRouter, usePathname } from "next/navigation";
@@ -35,18 +37,23 @@ const navItems = [
   { label: "Reports", icon: BarChart3, link: "/reports" },
   { label: "Activity Logs", icon: LayoutDashboard, link: "/activity-logs" },
   { label: "Notifications", icon: Bell, link: "/notifications" },
-  { label: "My tasks", icon: Bell, link: "/my-tasks", global: true },
+  { label: "My tasks", icon: ListChecks, link: "/my-tasks", global: true },
 ];
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const { workspaces, currentWorkspace, setCurrentWorkspace, switchWorkspace, workspaceSettings } = useWorkspace();
+  const {
+    workspaces,
+    currentWorkspace,
+    setCurrentWorkspace,
+    switchWorkspace,
+    workspaceSettings,
+  } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
   // const { workspaces, currentWorkspace, setCurrentWorkspace, loading } = useWorkspace();
-
 
   return (
     <>
@@ -67,13 +74,15 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`h-screen bg-background p-4 fixed lg:relative z-50 transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-          }`}
+        className={`h-screen bg-background p-4 fixed lg:relative z-50 transition-transform duration-300 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
       >
         {/* Grey container */}
         <div
-          className={`h-full bg-muted rounded-2xl transition-all duration-300 flex flex-col justify-between ${collapsed ? "w-16" : "w-72"
-            }`}
+          className={`h-full bg-muted rounded-2xl transition-all duration-300 flex flex-col justify-between ${
+            collapsed ? "w-16" : "w-72"
+          }`}
         >
           <div className={`${collapsed ? "px-2 pt-3" : "px-4 pt-4"}`}>
             {/* Logo */}
@@ -102,9 +111,6 @@ export default function Sidebar() {
               </button>
             </div>
 
-
-
-
             {/* Workspace Box */}
             {!collapsed && (
               <div className="mb-6 rounded-xl border border-sidebar-border bg-card overflow-hidden">
@@ -117,7 +123,9 @@ export default function Sidebar() {
                       <p className="text-sm font-medium text-foreground py-1">
                         {currentWorkspace.name}
                       </p>
-                      <p className="text-xs text-muted-foreground">{currentWorkspace.user_role}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {currentWorkspace.user_role}
+                      </p>
                     </div>
                   ) : (
                     <div>
@@ -127,8 +135,9 @@ export default function Sidebar() {
                     </div>
                   )}
                   <ChevronDown
-                    className={`w-4 h-4 text-muted-foreground transition-transform ${workspaceOpen ? "rotate-180" : ""
-                      }`}
+                    className={`w-4 h-4 text-muted-foreground transition-transform ${
+                      workspaceOpen ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
 
@@ -141,13 +150,18 @@ export default function Sidebar() {
                           switchWorkspace(ws);
                           setWorkspaceOpen(false);
                         }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-sidebar-accent ${currentWorkspace?.id === ws.id ? 'bg-sidebar-accent' : ''
-                          }`}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-sidebar-accent ${
+                          currentWorkspace?.id === ws.id
+                            ? "bg-sidebar-accent"
+                            : ""
+                        }`}
                       >
                         <div className="w-2 h-2 rounded-full bg-primary" />
                         <div>
                           <p className="text-sm font-medium">{ws.name}</p>
-                          <p className="text-xs text-muted-foreground">{ws.user_role}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {ws.user_role}
+                          </p>
                         </div>
                       </button>
                     ))}
@@ -155,7 +169,10 @@ export default function Sidebar() {
                 )}
 
                 <div className="border-t border-border">
-                  <button onClick={() => setShowCreateModal(true)} className="flex w-full items-center gap-2 px-3 py-3 text-sm hover:bg-sidebar-accent">
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex w-full items-center gap-2 px-3 py-3 text-sm hover:bg-sidebar-accent"
+                  >
                     <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-sidebar-border">
                       <Plus className="w-4 h-4" />
                     </span>
@@ -174,21 +191,28 @@ export default function Sidebar() {
 
             <nav className="space-y-1">
               {(() => {
-                const filteredNavItems = navItems.filter(item => {
+                const filteredNavItems = navItems.filter((item) => {
                   if (!workspaceSettings?.enabled_modules) return true;
                   const modules = workspaceSettings.enabled_modules;
 
                   // Planning currently hides nothing based on user request
-                  if (!modules.my_tasks && item.label === "My tasks") return false;
-                  if (!modules.logs && item.label === "Activity Logs") return false;
+                  if (!modules.my_tasks && item.label === "My tasks")
+                    return false;
+                  if (!modules.logs && item.label === "Activity Logs")
+                    return false;
 
                   return true;
                 });
 
                 return filteredNavItems.map((item) => {
                   const Icon = item.icon;
-                  const workspaceBasedLink = (currentWorkspace && !item.global) ? `/${currentWorkspace.id}${item.link}` : item.link;
-                  const isActive = pathname === workspaceBasedLink || (item.global && pathname.startsWith(item.link));
+                  const workspaceBasedLink =
+                    currentWorkspace && !item.global
+                      ? `/${currentWorkspace.id}${item.link}`
+                      : item.link;
+                  const isActive =
+                    pathname === workspaceBasedLink ||
+                    (item.global && pathname.startsWith(item.link));
 
                   return (
                     <button
@@ -203,15 +227,18 @@ export default function Sidebar() {
                         }
                         setMobileOpen(false);
                       }}
-                      className={`w-full flex items-center rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "gap-3 px-3 py-2"
-                        } ${isActive
+                      className={`w-full flex items-center rounded-xl transition-colors ${
+                        collapsed ? "justify-center p-2" : "gap-3 px-3 py-2"
+                      } ${
+                        isActive
                           ? "font-semibold text-foreground bg-secondary"
                           : "text-muted-foreground hover:bg-secondary/50"
-                        }`}
+                      }`}
                     >
                       <Icon
-                        className={`${collapsed ? "w-6 h-6" : "w-5 h-5"} ${isActive ? "text-primary" : "text-muted-foreground"
-                          }`}
+                        className={`${collapsed ? "w-6 h-6" : "w-5 h-5"} ${
+                          isActive ? "text-primary" : "text-muted-foreground"
+                        }`}
                       />
 
                       {!collapsed && (

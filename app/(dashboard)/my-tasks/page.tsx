@@ -94,9 +94,7 @@ const MyTasksPage = () => {
       <div className="">
         <div className="px-4 md:px-8 py-6 md:py-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold text-card-foreground">
-              My Task
-            </h1>
+            <h1 className="text-4xl font-bold text-card-foreground">My Task</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Track your personal task without pressure.
             </p>
@@ -121,15 +119,13 @@ const MyTasksPage = () => {
       </div>
 
       {/* Tasks Container */}
-      <div className="p-4 md:p-8 mx-4 md:mx-8 mb-8 mt-2 md:mt-0 rounded-2xl bg-background ">
+      <div className="p-4 md:p-8 mx-2 sm:mx-4 md:mx-8 mb-8 mt-2 md:mt-0 rounded-2xl bg-background">
         {loading ? (
-          <div className="rounded-xl border border-dashed border-border p-12 text-center">
-            <p className="text-muted-foreground">
-              Loading tasks...
-            </p>
+          <div className="rounded-xl border border-dashed border-border p-8 md:p-12 text-center">
+            <p className="text-muted-foreground">Loading tasks...</p>
           </div>
         ) : tasks.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-12 text-center">
+          <div className="rounded-xl border border-dashed border-border p-8 md:p-12 text-center">
             <p className="text-muted-foreground">
               No tasks yet. Create one to get started!
             </p>
@@ -137,7 +133,7 @@ const MyTasksPage = () => {
         ) : (
           <div className="space-y-4">
             {/* Section Header */}
-            <h2 className="mb-6 text-lg font-bold text-card-foreground">
+            <h2 className="mb-4 md:mb-6 text-base md:text-lg font-bold text-card-foreground">
               Personal To-Do List
             </h2>
 
@@ -145,66 +141,90 @@ const MyTasksPage = () => {
             <div className="space-y-3">
               {tasks.map((task) => {
                 const { date, time } = parseDeadline(task.deadline);
-                const isOverdue = !task.completed && task.deadline && new Date(task.deadline) < new Date();
+                const isOverdue =
+                  !task.completed &&
+                  task.deadline &&
+                  new Date(task.deadline) < new Date();
 
                 return (
                   <div
                     key={task.id}
-                    className={`flex items-center gap-4 rounded-xl px-6 py-4 transition-all hover:shadow-sm ${isOverdue ? "bg-red-500/5 border border-red-500/20" : "bg-muted"}`}
+                    className={`flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl px-4 sm:px-6 py-4 transition-all hover:shadow-sm ${
+                      isOverdue
+                        ? "bg-red-500/5 border border-red-500/20"
+                        : "bg-muted"
+                    }`}
                   >
-                    {/* Checkbox */}
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => handleToggleTaskCompletion(task.id, task.completed)}
-                      className="h-6 w-6 cursor-pointer rounded border-2 border-primary accent-primary"
-                    />
+                    {/* Top Row (Checkbox + Content) */}
+                    <div className="flex items-start sm:items-center gap-4 w-full min-w-0">
+                      {/* Checkbox */}
+                      <input
+                        type="checkbox"
+                        checked={task.completed}
+                        onChange={() =>
+                          handleToggleTaskCompletion(task.id, task.completed)
+                        }
+                        className="h-5 w-5 sm:h-6 sm:w-6 mt-1 sm:mt-0 shrink-0 cursor-pointer rounded border-2 border-primary accent-primary"
+                      />
 
-                    {/* Task Content */}
-                    <div className="flex-1 min-w-0">
-                      {/* Date and Time */}
-                      <div className={`mt-2 flex items-center gap-4 text-xs mb-2 ${isOverdue ? "text-red-500/80 font-medium" : "text-muted-foreground"}`}>
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="h-4 w-4" /> {date}
-                        </span>
-                        {time && (
-                          <span className="flex items-center gap-1.5">
-                            <Clock className="h-4 w-4" /> {time}
-                          </span>
-                        )}
-                        {isOverdue && (
-                          <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[10px] font-bold uppercase tracking-wider">
-                            Overdue
-                          </span>
-                        )}
-                      </div>
-                      <p
-                        className={`text-sm font-medium transition-all ${task.completed
-                          ? "line-through text-muted-foreground"
-                          : isOverdue
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-card-foreground"
+                      {/* Task Content */}
+                      <div className="flex-1 min-w-0">
+                        {/* Date and Time */}
+                        <div
+                          className={`mt-1 sm:mt-2 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs mb-2 ${
+                            isOverdue
+                              ? "text-red-500/80 font-medium"
+                              : "text-muted-foreground"
                           }`}
-                      >
-                        {task.title}
-                      </p>
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />{" "}
+                            {date}
+                          </span>
+
+                          {time && (
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4" /> {time}
+                            </span>
+                          )}
+
+                          {isOverdue && (
+                            <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
+
+                        <p
+                          className={`text-sm font-medium break-words transition-all ${
+                            task.completed
+                              ? "line-through text-muted-foreground"
+                              : isOverdue
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-card-foreground"
+                          }`}
+                        >
+                          {task.title}
+                        </p>
+                      </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-end sm:justify-start gap-3 sm:ml-auto">
                       <button
                         onClick={() => handleDeleteTask(task.id)}
-                        className="rounded-full p-2 text-muted-foreground transition-colors bg-background  hover:text-red-500"
+                        className="rounded-full p-2 text-muted-foreground transition-colors bg-background hover:text-red-500"
                         title="Delete Task"
                       >
-                        <Trash2 className="h-5 w-5" />
+                        <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
                       </button>
-                      <button className="rounded-full p-2 text-muted-foreground transition-colors bg-background  hover:text-card-foreground">
-                        <MoreHorizontal className="h-5 w-5" />
+
+                      <button className="rounded-full p-2 text-muted-foreground transition-colors bg-background hover:text-card-foreground">
+                        <MoreHorizontal className="h-4 w-4 sm:h-5 sm:w-5" />
                       </button>
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           </div>
