@@ -14,6 +14,7 @@ import {
 } from "../../ui/Select";
 import { Textarea } from "../../ui/textarea";
 import IconSelectionModal from "./IconSelectionModal";
+import toast from "react-hot-toast";
 
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import { useAuth } from "@/libs/hooks/useAuth";
@@ -64,9 +65,14 @@ export default function AddLinksModal({
 
         setLoading(true);
 
+        let finalUrl = url;
+        if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+            finalUrl = `https://${finalUrl}`;
+        }
+
         const payload = {
             title: name,
-            url,
+            url: finalUrl,
             category,
             description,
             icon: selectedIcon?.icon || "",
@@ -75,6 +81,7 @@ export default function AddLinksModal({
 
         try {
             await quickLinksService.createSharedQuickLink(currentWorkspace.id, payload);
+            toast.success("Quick link added successfully!");
             if (onLinkAdded) onLinkAdded();
             onClose();
             // Reset form
@@ -83,8 +90,20 @@ export default function AddLinksModal({
             setCategory("");
             setDescription("");
             setSelectedIcon(null);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create quick link:", error);
+
+            const resData = error?.response?.data;
+            let errorMessage = "Failed to add link. Please try again.";
+
+            if (resData?.error) errorMessage = resData.error;
+            else if (resData?.detail) errorMessage = resData.detail;
+            else if (resData && typeof resData === 'object') {
+                const firstVal = Object.values(resData)[0];
+                if (Array.isArray(firstVal)) errorMessage = firstVal[0] as string;
+            }
+
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }

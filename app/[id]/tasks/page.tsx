@@ -22,6 +22,7 @@ import { useRef } from 'react'
 const TasksPage = () => {
   const [currentView, setCurrentView] = useState('list')
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -92,11 +93,11 @@ const TasksPage = () => {
     if (!mounted) return <div>Loading...</div>
 
     switch (currentView) {
-      case 'kanban': return <KanbanView />
-      case 'list': return <ListView />
-      case 'board': return <BoardView />
-      case 'timeline': return <TimelineView />
-      default: return <ListView />
+      case 'kanban': return <KanbanView key={refreshKey} />
+      case 'list': return <ListView key={refreshKey} />
+      case 'board': return <BoardView key={refreshKey} />
+      case 'timeline': return <TimelineView key={refreshKey} />
+      default: return <ListView key={refreshKey} />
     }
   }
 
@@ -179,7 +180,7 @@ const TasksPage = () => {
       <CreateTaskModal
         isOpen={isCreateTaskOpen}
         onClose={() => setIsCreateTaskOpen(false)}
-        onTaskCreated={() => window.location.reload()}
+        onTaskCreated={() => setRefreshKey(prev => prev + 1)}
       />
     </div>
   )

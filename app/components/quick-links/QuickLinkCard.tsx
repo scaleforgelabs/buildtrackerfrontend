@@ -4,6 +4,7 @@ import { Images } from "@/public"
 import { MoreVertical, Edit2, Trash2 } from "lucide-react"
 import EditLinksModal from "./modal/EditLinksModal"
 import DeleteLinksModal from "./modal/DeleteLinksModal"
+import ViewLinkModal from "./modal/ViewLinkModal"
 
 const QuickLinkCard = ({
   id,
@@ -26,6 +27,7 @@ const QuickLinkCard = ({
 }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -48,12 +50,17 @@ const QuickLinkCard = ({
           onDeleted?.();
         }}
       />
+      <ViewLinkModal
+        open={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        link={{ id, title, url, category, description, icon }}
+      />
       <div className="rounded-2xl border bg-card shadow-sm h-full flex flex-col">
         <div className='p-4 flex-1'>
 
           {/* Top */}
           <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
               <div className="flex h-14 w-14 items-center justify-center rounded-xl border bg-card shrink-0 overflow-hidden relative">
                 {icon ? (
                   <img src={icon} alt={title} className="w-full h-full object-cover" />
@@ -115,7 +122,10 @@ const QuickLinkCard = ({
 
         {/* Actions */}
         <div className="flex items-center gap-3 p-4">
-          <button className="flex-1 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5 transition-colors">
+          <button
+            onClick={() => setIsViewModalOpen(true)}
+            className="flex-1 rounded-lg border border-primary px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
+          >
             Details
           </button>
           <a
