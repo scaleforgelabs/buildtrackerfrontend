@@ -26,6 +26,7 @@ import pdf_icon from "@/public/images/pdf_icon.svg"
 import ppt_icon from "@/public/images/ppt_icon.svg"
 import pptx_icon from "@/public/images/pptx_icon.svg"
 import xls_icon from "@/public/images/xls_icon.svg"
+import apple from "@/public/images/apple-logo-svgrepo-com.svg"
 // import xlsx_icon from "@/public/images/doc_icon.svg"
 
 
@@ -60,4 +61,5 @@ export const Images = {
   ppt_icon,
   pptx_icon,
   xls_icon,
+  apple,
 };
