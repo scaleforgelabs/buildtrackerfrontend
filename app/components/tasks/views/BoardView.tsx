@@ -45,7 +45,13 @@ const BoardColumn = ({
     <div className="flex flex-col rounded-2xl bg-muted/30 p-4 border border-border min-h-[500px] transition-colors">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <Image src={image} alt={status} width={16} height={16} className="h-4 w-4" />
+          <Image
+            src={image}
+            alt={status}
+            width={16}
+            height={16}
+            className="h-4 w-4"
+          />
           <h2 className="text-base font-bold text-foreground">
             {status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")}{" "}
             <span className="text-muted-foreground font-medium ml-1">

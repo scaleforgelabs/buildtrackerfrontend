@@ -137,13 +137,24 @@ function KanbanColumn({
     <div className="flex flex-col bg-white dark:bg-muted/10 rounded-2xl p-4 w-full min-w-[320px] md:min-w-0 h-fit border border-border">
       <div className="flex items-center justify-between mb-5 px-1">
         <div className="flex items-center gap-2 font-bold text-foreground text-base">
-          <Image src={image} alt={title} width={20} height={20} className="h-5 w-5" />
+          <Image
+            src={image}
+            alt={title}
+            width={20}
+            height={20}
+            className="h-5 w-5"
+          />
           {title}
           <span className="text-muted-foreground font-medium ml-1 text-sm">
             ({items.length})
           </span>
         </div>
-        <Button onClick={() => onAddTicket(columnId)} size="icon" variant="ghost" className="h-8 w-8 text-primary">
+        <Button
+          onClick={() => onAddTicket(columnId)}
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-primary"
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -181,7 +192,9 @@ export default function KanbanBoard() {
     if (!currentWorkspace?.id) return;
     try {
       setLoading(true);
-      const response = await api.get(`/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`);
+      const response = await api.get(
+        `/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`,
+      );
       const tasks = response.data.results?.data || [];
       setColumns(getInitialData(tasks));
     } catch (error) {
@@ -194,8 +207,6 @@ export default function KanbanBoard() {
   useEffect(() => {
     fetchTasks();
   }, [currentWorkspace?.id]);
-
-
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -273,8 +284,8 @@ export default function KanbanBoard() {
           `/tasks/${currentWorkspace?.id}/tasks/${activeId}/status/`,
           {
             status: statusMapping[targetCol],
-            percent_complete: targetCol === 'completed' ? 100 : 0,
-          }
+            percent_complete: targetCol === "completed" ? 100 : 0,
+          },
         );
       } catch (error) {
         console.error("Failed to update task status:", error);
@@ -292,7 +303,11 @@ export default function KanbanBoard() {
   const activeTicket = activeId ? findTicketById(activeId) : null;
 
   if (loading) {
-    return <div className="p-6 text-center text-muted-foreground">Loading tasks...</div>;
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        Loading tasks...
+      </div>
+    );
   }
 
   return (
