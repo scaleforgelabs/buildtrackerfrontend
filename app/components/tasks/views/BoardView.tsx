@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { BoardTaskCard } from "../BoardTaskCard";
-import { Plus, CheckCircle2, Target, Scan } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import { useRouter } from "next/navigation";
 import api from "@/libs/api";
+import { Images } from "@/public";
 
 interface TaskData {
   id: string;
@@ -27,22 +29,34 @@ interface TaskData {
 interface BoardColumnProps {
   status: string;
   tasks: TaskData[];
-  icon: React.ElementType;
-  iconBg: string;
+  image: any;
   onStatusChange: (taskId: string, newStatus: string) => void;
   onTaskClick: (taskId: string) => void;
 }
 
-const BoardColumn = ({ status, tasks, icon: Icon, iconBg, onStatusChange, onTaskClick }: BoardColumnProps) => {
+const BoardColumn = ({
+  status,
+  tasks,
+  image,
+  onStatusChange,
+  onTaskClick,
+}: BoardColumnProps) => {
   return (
     <div className="flex flex-col rounded-2xl bg-muted/30 p-4 border border-border min-h-[500px] transition-colors">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <div className={`p-2 rounded-lg ${iconBg} shadow-sm border border-border`}>
-            <Icon className="h-4 w-4 text-primary" />
-          </div>
+          <Image
+            src={image}
+            alt={status}
+            width={16}
+            height={16}
+            className="h-4 w-4"
+          />
           <h2 className="text-base font-bold text-foreground">
-            {status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")} <span className="text-muted-foreground font-medium ml-1">({tasks.length})</span>
+            {status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")}{" "}
+            <span className="text-muted-foreground font-medium ml-1">
+              ({tasks.length})
+            </span>
           </h2>
         </div>
         <button className="h-7 w-7 rounded-full border border-primary flex items-center justify-center text-primary hover:bg-primary/5 transition-colors">
@@ -76,7 +90,9 @@ const BoardView = () => {
     const fetchTasks = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`);
+        const response = await api.get(
+          `/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`,
+        );
         setTasks(response.data.results?.data || []);
       } catch (error) {
         console.error("Failed to fetch tasks:", error);
@@ -92,20 +108,17 @@ const BoardView = () => {
     const oldTasks = [...tasks];
 
     // OPTIMISTIC UPDATE: Update UI instantly
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === taskId ? { ...task, status: newStatus } : task,
+      ),
     );
 
     try {
-      await api.put(
-        `/tasks/${currentWorkspace?.id}/tasks/${taskId}/status/`,
-        {
-          status: newStatus,
-          percent_complete: newStatus === 'completed' ? 100 : 0,
-        }
-      );
+      await api.put(`/tasks/${currentWorkspace?.id}/tasks/${taskId}/status/`, {
+        status: newStatus,
+        percent_complete: newStatus === "completed" ? 100 : 0,
+      });
     } catch (error) {
       console.error("Failed to update task status:", error);
       // REVERT: Fallback to old state if API fails
@@ -114,7 +127,11 @@ const BoardView = () => {
   };
 
   if (loading) {
-    return <div className="p-6 text-center text-muted-foreground">Loading tasks...</div>;
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        Loading tasks...
+      </div>
+    );
   }
 
   const pendingTasks = tasks.filter((t) => t.status === "pending");
@@ -132,24 +149,21 @@ const BoardView = () => {
       <BoardColumn
         status="pending"
         tasks={pendingTasks}
-        icon={Scan}
-        iconBg="bg-blue-50 dark:bg-blue-950/20"
+        image={Images.pending}
         onStatusChange={handleStatusChange}
         onTaskClick={handleTaskClick}
       />
       <BoardColumn
         status="in_progress"
         tasks={inProgressTasks}
-        icon={Target}
-        iconBg="bg-orange-50 dark:bg-orange-950/20"
+        image={Images.progress}
         onStatusChange={handleStatusChange}
         onTaskClick={handleTaskClick}
       />
       <BoardColumn
         status="completed"
         tasks={completedTasks}
-        icon={CheckCircle2}
-        iconBg="bg-accent dark:bg-accent/20"
+        image={Images.complete}
         onStatusChange={handleStatusChange}
         onTaskClick={handleTaskClick}
       />
