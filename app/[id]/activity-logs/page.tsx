@@ -1,13 +1,13 @@
 "use client";
 
 import {
-    Download,
-    ChevronDown,
-    Plus,
-    Trash2,
-    MessageSquare,
-    RefreshCw,
-    UserPlus,
+  Download,
+  ChevronDown,
+  Plus,
+  Trash2,
+  MessageSquare,
+  RefreshCw,
+  UserPlus,
 } from "lucide-react";
 import Image from "next/image";
 import { Images } from "@/public";
@@ -17,59 +17,59 @@ import { useEffect, useState } from "react";
 import api from "@/libs/api";
 
 interface Log {
-    id: string;
-    log_type: string;
-    severity: string;
-    action: string;
-    entity_type: string;
-    entity_id: string;
-    description: string;
-    metadata: Record<string, any>;
-    user_email: string;
-    user_name: string;
-    ip_address: string;
-    created_at: string;
+  id: string;
+  log_type: string;
+  severity: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  description: string;
+  metadata: Record<string, any>;
+  user_email: string;
+  user_name: string;
+  ip_address: string;
+  created_at: string;
 }
 
 const getEventIcon = (logType: string) => {
-    switch (logType) {
-        case "task_create":
-            return <Plus className="h-4 w-4 text-blue-500" />;
-        case "task_delete":
-            return <Trash2 className="h-4 w-4 text-red-500" />;
-        case "task_update":
-            return <RefreshCw className="h-4 w-4 text-blue-500" />;
-        case "comment_create":
-            return <MessageSquare className="h-4 w-4 text-blue-500" />;
-        case "member_add":
-            return <UserPlus className="h-4 w-4 text-green-500" />;
-        default:
-            return <Plus className="h-4 w-4 text-blue-500" />;
-    }
+  switch (logType) {
+    case "task_create":
+      return <Plus className="h-4 w-4 text-blue-500" />;
+    case "task_delete":
+      return <Trash2 className="h-4 w-4 text-red-500" />;
+    case "task_update":
+      return <RefreshCw className="h-4 w-4 text-blue-500" />;
+    case "comment_create":
+      return <MessageSquare className="h-4 w-4 text-blue-500" />;
+    case "member_add":
+      return <UserPlus className="h-4 w-4 text-green-500" />;
+    default:
+      return <Plus className="h-4 w-4 text-blue-500" />;
+  }
 };
 
 const getEventName = (logType: string) => {
-    const eventMap: Record<string, string> = {
-        task_create: "Task Created",
-        task_delete: "Task Deleted",
-        task_update: "Task Updated",
-        comment_create: "Comment Added",
-        comment_delete: "Comment Deleted",
-        member_add: "Member Added",
-        member_remove: "Member Removed",
-    };
-    return eventMap[logType] || logType;
+  const eventMap: Record<string, string> = {
+    task_create: "Task Created",
+    task_delete: "Task Deleted",
+    task_update: "Task Updated",
+    comment_create: "Comment Added",
+    comment_delete: "Comment Deleted",
+    member_add: "Member Added",
+    member_remove: "Member Removed",
+  };
+  return eventMap[logType] || logType;
 };
 
 const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 export default function ActivityLogsPage() {
@@ -85,46 +85,25 @@ export default function ActivityLogsPage() {
     useEffect(() => {
         if (!currentWorkspace?.id) return;
 
-        const fetchLogs = async () => {
-            try {
-                setLoading(true);
-                const response = await api.get(
-                    `/logs/workspaces/${currentWorkspace.id}/logs/detailed`
-                );
-                setLogs(response.data.data || []);
-            } catch (error) {
-                console.error("Failed to fetch logs:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
 
-        fetchLogs();
-    }, [currentWorkspace?.id]);
+    const fetchLogs = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(
+          `/logs/workspaces/${currentWorkspace.id}/logs/detailed`,
+        );
+        setLogs(response.data.data || []);
+      } catch (error) {
+        console.error("Failed to fetch logs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return (
-        <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
-            {/* Header */}
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between px-2">
-                <div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-                        Activity Logs - {currentWorkspace?.name || "Loading..."}
-                    </h1>
-                    <p className="text-sm md:text-md text-muted-foreground mt-1">
-                        Track all your workspace activities and changes
-                    </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                    <button className="flex items-center gap-2 rounded-2xl border border-blue-200 bg-white px-6 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors">
-                        All Activities
-                        <ChevronDown className="h-4 w-4" />
-                    </button>
-                    <button className="flex items-center gap-2 rounded-2xl bg-blue-600 px-8 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-all">
-                        <Download className="h-5 w-5" />
-                        Export
-                    </button>
-                </div>
-            </div>
+    fetchLogs();
+  }, [currentWorkspace?.id]);
 
             {/* Main Content Table Area */}
             <div className="rounded-[2.5rem] bg-card p-4 md:p-8 border border-border shadow-sm">
@@ -276,5 +255,7 @@ export default function ActivityLogsPage() {
                 </div>
             </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

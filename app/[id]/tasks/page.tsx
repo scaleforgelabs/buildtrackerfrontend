@@ -1,105 +1,116 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from "react";
 import {
   Layout,
   List,
   LayoutGrid,
   GitCommitHorizontal,
   Plus,
-  Upload
-} from 'lucide-react'
-import KanbanView from '@/app/components/tasks/views/KanbanView'
-import ListView from '@/app/components/tasks/views/ListView'
-import BoardView from '@/app/components/tasks/views/BoardView'
-import TimelineView from '@/app/components/tasks/views/TimelineView'
-import CreateTaskModal from '@/app/components/tasks/modals/CreateTaskModal'
-import { useWorkspace } from '@/libs/hooks/useWorkspace'
-import Papa from 'papaparse'
-import { tasksService } from '@/libs/api/services'
-import { useRef } from 'react'
+  Upload,
+} from "lucide-react";
+import KanbanView from "@/app/components/tasks/views/KanbanView";
+import ListView from "@/app/components/tasks/views/ListView";
+import BoardView from "@/app/components/tasks/views/BoardView";
+import TimelineView from "@/app/components/tasks/views/TimelineView";
+import CreateTaskModal from "@/app/components/tasks/modals/CreateTaskModal";
+import { useWorkspace } from "@/libs/hooks/useWorkspace";
+import Papa from "papaparse";
+import { tasksService } from "@/libs/api/services";
+import { useRef } from "react";
 
 const TasksPage = () => {
-  const [currentView, setCurrentView] = useState('list')
-  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [mounted, setMounted] = useState(false)
-  const [isImporting, setIsImporting] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { currentWorkspace } = useWorkspace()
+  const [currentView, setCurrentView] = useState("list");
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { currentWorkspace } = useWorkspace();
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
-  }
+  };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !currentWorkspace) return
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file || !currentWorkspace) return;
 
-    setIsImporting(true)
+    setIsImporting(true);
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
         try {
-          const rows = results.data as any[]
+          const rows = results.data as any[];
 
           for (const row of rows) {
-            // Map CSV columns to generic task model. 
+            // Map CSV columns to generic task model.
             // Required backend fields: title, description, display_id (auto generated usually), priority, status
             const taskPayload = {
               workspace: currentWorkspace.id,
-              title: row.Title || row.title || row.Name || row.name || 'Imported Task',
-              description: row.Description || row.description || '',
-              status: row.Status || row.status || 'pending',
-              priority: row.Priority || row.priority || 'medium',
-            }
+              title:
+                row.Title ||
+                row.title ||
+                row.Name ||
+                row.name ||
+                "Imported Task",
+              description: row.Description || row.description || "",
+              status: row.Status || row.status || "pending",
+              priority: row.Priority || row.priority || "medium",
+            };
 
-            await tasksService.createTask(taskPayload)
+            await tasksService.createTask(taskPayload);
           }
 
           // Reset and refresh
-          if (fileInputRef.current) fileInputRef.current.value = ''
-          window.location.reload()
-
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          window.location.reload();
         } catch (error) {
-          console.error("Failed to import tasks:", error)
-          alert("Failed to import some tasks. Please check the CSV format.")
+          console.error("Failed to import tasks:", error);
+          alert("Failed to import some tasks. Please check the CSV format.");
         } finally {
-          setIsImporting(false)
+          setIsImporting(false);
         }
       },
       error: (error) => {
-        console.error("CSV Parse Error:", error)
-        setIsImporting(false)
-        alert("Failed to parse CSV file.")
-      }
-    })
-  }
+        console.error("CSV Parse Error:", error);
+        setIsImporting(false);
+        alert("Failed to parse CSV file.");
+      },
+    });
+  };
 
   const tabs = [
-    { id: 'kanban', label: 'Kanban', icon: Layout },
-    { id: 'list', label: 'List', icon: List },
-    { id: 'board', label: 'Board', icon: LayoutGrid },
-    { id: 'timeline', label: 'Timeline', icon: GitCommitHorizontal },
-  ]
+    { id: "kanban", label: "Kanban", icon: Layout },
+    { id: "list", label: "List", icon: List },
+    { id: "board", label: "Board", icon: LayoutGrid },
+    { id: "timeline", label: "Timeline", icon: GitCommitHorizontal },
+  ];
 
   const renderView = () => {
-    if (!mounted) return <div>Loading...</div>
+    if (!mounted) return <div>Loading...</div>;
 
     switch (currentView) {
-      case 'kanban': return <KanbanView key={refreshKey} />
-      case 'list': return <ListView key={refreshKey} />
-      case 'board': return <BoardView key={refreshKey} />
-      case 'timeline': return <TimelineView key={refreshKey} />
-      default: return <ListView key={refreshKey} />
+      case "kanban":
+        return <KanbanView key={refreshKey} />;
+      case "list":
+        return <ListView key={refreshKey} />;
+      case "board":
+        return <BoardView key={refreshKey} />;
+      case "timeline":
+        return <TimelineView key={refreshKey} />;
+      default:
+        return <ListView key={refreshKey} />;
     }
-  }
+  };
 
   if (!mounted) {
     return (
@@ -109,7 +120,7 @@ const TasksPage = () => {
           <div className="h-4 bg-gray-200 rounded w-1/3"></div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -117,11 +128,16 @@ const TasksPage = () => {
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Tasks - {currentWorkspace?.name || 'Loading...'}</h1>
-          <p className="text-sm text-muted-foreground">Track and manage all your project tasks</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            Tasks - {currentWorkspace?.name || "Loading..."}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Track and manage all your project tasks
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {(currentWorkspace?.user_role === 'Owner' || currentWorkspace?.user_role === 'Admin') && (
+          {(currentWorkspace?.user_role === "Owner" ||
+            currentWorkspace?.user_role === "Admin") && (
             <>
               <input
                 type="file"
@@ -136,7 +152,7 @@ const TasksPage = () => {
                 className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-medium text-primary hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
               >
                 <Upload className="h-4 w-4" />
-                {isImporting ? 'Importing...' : 'Import CSV'}
+                {isImporting ? "Importing..." : "Import CSV"}
               </button>
             </>
           )}
@@ -153,22 +169,23 @@ const TasksPage = () => {
       {/* Tabs */}
       <div className="flex items-center overflow-x-auto rounded-xl bg-card p-1 shadow-sm w-fit max-w-full">
         {tabs.map((tab) => {
-          const Icon = tab.icon
-          const isActive = currentView === tab.id
+          const Icon = tab.icon;
+          const isActive = currentView === tab.id;
 
           return (
             <button
               key={tab.id}
               onClick={() => setCurrentView(tab.id)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${isActive
-                ? 'bg-muted text-foreground'
-                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                }`}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
+                isActive
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              }`}
             >
               <Icon className="h-4 w-4" />
               {tab.label}
             </button>
-          )
+          );
         })}
       </div>
 
@@ -180,10 +197,10 @@ const TasksPage = () => {
       <CreateTaskModal
         isOpen={isCreateTaskOpen}
         onClose={() => setIsCreateTaskOpen(false)}
-        onTaskCreated={() => setRefreshKey(prev => prev + 1)}
+        onTaskCreated={() => setRefreshKey((prev) => prev + 1)}
       />
     </div>
-  )
-}
+  );
+};
 
-export default TasksPage
+export default TasksPage;

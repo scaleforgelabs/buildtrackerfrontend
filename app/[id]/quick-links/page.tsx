@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { Plus } from "lucide-react";
 import Image from "next/image";
@@ -6,7 +6,7 @@ import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import { useAuth } from "@/libs/hooks/useAuth";
 import { quickLinksService } from "@/libs/api/services";
 
-import QuickLinkCard from "@/app/components/quick-links/QuickLinkCard"
+import QuickLinkCard from "@/app/components/quick-links/QuickLinkCard";
 import AddLinksModal from "@/app/components/quick-links/modal/AddLinksModal";
 import { useState, useEffect } from "react";
 
@@ -49,25 +49,29 @@ export default function QuickLinksPage() {
         onClose={() => setOpen(false)}
         onLinkAdded={() => {
           if (currentWorkspace?.id) {
-            quickLinksService.getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() }).then(res => setLinks(res.data.shared_links || []));
+            quickLinksService
+              .getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() })
+              .then((res) => setLinks(res.data.shared_links || []));
           }
         }}
       />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Quick Links - {currentWorkspace?.name || 'Loading...'}</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Quick Links - {currentWorkspace?.name || "Loading..."}
+          </h1>
           <p className="text-sm text-muted-foreground">
             Link your important resources and materials to BuildTracker
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow"
-          onClick={() => setOpen(true)}>
+        <button
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all active:scale-95 shadow-lg shadow-blue-600/20"
+          onClick={() => setOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           Add
-          <span className="hidden md:flex">
-            Custom Link
-          </span>
+          Custom Link
         </button>
       </div>
 
@@ -88,12 +92,20 @@ export default function QuickLinksPage() {
                 description={link.description}
                 onSaved={() => {
                   if (currentWorkspace?.id) {
-                    quickLinksService.getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() }).then(res => setLinks(res.data.shared_links || []));
+                    quickLinksService
+                      .getSharedQuickLinks(currentWorkspace.id, {
+                        _t: Date.now(),
+                      })
+                      .then((res) => setLinks(res.data.shared_links || []));
                   }
                 }}
                 onDeleted={() => {
                   if (currentWorkspace?.id) {
-                    quickLinksService.getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() }).then(res => setLinks(res.data.shared_links || []));
+                    quickLinksService
+                      .getSharedQuickLinks(currentWorkspace.id, {
+                        _t: Date.now(),
+                      })
+                      .then((res) => setLinks(res.data.shared_links || []));
                   }
                 }}
               />
