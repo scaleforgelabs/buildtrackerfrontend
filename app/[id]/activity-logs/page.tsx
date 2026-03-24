@@ -76,6 +76,11 @@ export default function ActivityLogsPage() {
     const { currentWorkspace } = useWorkspace();
     const [logs, setLogs] = useState<Log[]>([]);
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    const totalPages = Math.ceil(logs.length / itemsPerPage) || 1;
+    const paginatedLogs = logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     useEffect(() => {
         if (!currentWorkspace?.id) return;
@@ -164,7 +169,7 @@ export default function ActivityLogsPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                logs.map((log) => (
+                                paginatedLogs.map((log) => (
                                     <tr key={log.id} className="group hover:bg-muted/30 transition-colors">
                                         <td className="px-4 py-3">
                                             <input
@@ -227,18 +232,44 @@ export default function ActivityLogsPage() {
 
                 {/* Pagination Footer */}
                 <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 px-2">
-                    <p className="text-sm font-medium text-muted-foreground">
-                        Showing <span className="text-foreground">1 to {logs.length}</span> of{" "}
-                        <span className="text-foreground">{logs.length} logs</span>
-                    </p>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-muted-foreground">Items per page:</span>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="h-9 w-[70px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                        <p className="text-sm font-medium text-muted-foreground hidden md:block">
+                            Showing <span className="text-foreground">{logs.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, logs.length)}</span> of{" "}
+                            <span className="text-foreground">{logs.length} logs</span>
+                        </p>
+                    </div>
                     <div className="flex items-center gap-3">
-                        <button className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors" disabled>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                        >
                             Previous
                         </button>
                         <span className="px-4 py-2 text-sm font-bold bg-muted rounded-xl border border-border">
-                            1 of 1
+                            {currentPage} of {totalPages}
                         </span>
-                        <button className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted transition-colors" disabled>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                        >
                             Next
                         </button>
                     </div>
