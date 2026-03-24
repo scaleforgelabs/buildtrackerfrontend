@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   DndContext,
   closestCorners,
@@ -21,12 +22,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { Button } from "@/app/components/ui/button";
-import { Plus, CheckCircle2, Loader2, Clock } from "lucide-react";
+import { Plus } from "lucide-react";
 import { TaskCard } from "../TaskCard";
 import CreateTaskModal from "../modals/CreateTaskModal";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import { useRouter } from "next/navigation";
 import api from "@/libs/api";
+import { Images } from "@/public";
 
 function cn(...classes: (string | undefined | false)[]): string {
   return classes.filter(Boolean).join(" ");
@@ -118,13 +120,13 @@ function SortableTicket({ ticket }: { ticket: TaskData }) {
 
 function KanbanColumn({
   title,
-  icon: Icon,
+  image,
   columnId,
   items,
   onAddTicket,
 }: {
   title: string;
-  icon: any;
+  image: any;
   columnId: ColumnId;
   items: TaskData[];
   onAddTicket: (columnId: ColumnId) => void;
@@ -135,7 +137,7 @@ function KanbanColumn({
     <div className="flex flex-col bg-white dark:bg-muted/10 rounded-2xl p-4 w-full min-w-[320px] md:min-w-0 h-fit border border-border">
       <div className="flex items-center justify-between mb-5 px-1">
         <div className="flex items-center gap-2 font-bold text-foreground text-base">
-          <Icon className="h-5 w-5 text-primary" />
+          <Image src={image} alt={title} width={20} height={20} className="h-5 w-5" />
           {title}
           <span className="text-muted-foreground font-medium ml-1 text-sm">
             ({items.length})
@@ -303,21 +305,21 @@ export default function KanbanBoard() {
       <div className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto pb-4 md:pb-0 scrollbar-thin p-6 bg-muted">
         <KanbanColumn
           title="Pending"
-          icon={Loader2}
+          image={Images.pending}
           columnId="pending"
           items={columns.pending}
           onAddTicket={handleAddTicket}
         />
         <KanbanColumn
           title="In Progress"
-          icon={Clock}
+          image={Images.progress}
           columnId="in_progress"
           items={columns.in_progress}
           onAddTicket={handleAddTicket}
         />
         <KanbanColumn
           title="Completed"
-          icon={CheckCircle2}
+          image={Images.complete}
           columnId="completed"
           items={columns.completed}
           onAddTicket={handleAddTicket}
