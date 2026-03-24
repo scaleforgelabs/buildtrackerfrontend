@@ -59,6 +59,8 @@ function ListViewContent() {
   const searchQuery = searchParams.get('q') || '';
   const [tasks, setTasks] = useState<TaskData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     if (!currentWorkspace?.id) return;
@@ -88,6 +90,16 @@ function ListViewContent() {
       t.assigned_user?.last_name?.toLowerCase().includes(searchQuery.toLowerCase())
     )
     : tasks;
+
+  const totalPages = Math.ceil(filteredTasks.length / itemsPerPage) || 1;
+  const paginatedTasks = filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Reset page if we filter and the current page is out of bounds
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -160,7 +172,7 @@ function ListViewContent() {
               </td>
             </tr>
           ) : (
-            filteredTasks.map((task) => (
+            paginatedTasks.map((task) => (
               <tr
                 key={task.id}
                 className="hover:bg-muted/30 transition-colors group cursor-pointer"
@@ -260,6 +272,53 @@ function ListViewContent() {
           )}
         </tbody>
       </table>
+
+      {/* Pagination Footer */}
+      {filteredTasks.length > 0 && !loading && (
+        <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 px-2">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Items per page:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="h-9 w-[70px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground hidden md:block">
+              Showing <span className="text-foreground">{filteredTasks.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredTasks.length)}</span> of{" "}
+              <span className="text-foreground">{filteredTasks.length} tasks</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              Previous
+            </button>
+            <span className="px-4 py-2 text-sm font-bold bg-muted rounded-xl border border-border">
+              {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

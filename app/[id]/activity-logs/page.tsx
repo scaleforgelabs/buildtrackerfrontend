@@ -76,6 +76,11 @@ export default function ActivityLogsPage() {
   const { currentWorkspace } = useWorkspace();
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(logs.length / itemsPerPage) || 1;
+  const paginatedLogs = logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     if (!currentWorkspace?.id) return;
@@ -98,54 +103,32 @@ export default function ActivityLogsPage() {
   }, [currentWorkspace?.id]);
 
   return (
-    <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between px-2">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-            Activity Logs - {currentWorkspace?.name || "Loading..."}
-          </h1>
-          <p className="text-sm md:text-md text-muted-foreground mt-1">
-            Track all your workspace activities and changes
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button className="flex items-center gap-2 rounded-2xl border border-blue-200 bg-white px-6 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors">
-            All Activities
-            <ChevronDown className="h-4 w-4" />
-          </button>
-          <button className="flex items-center gap-2 rounded-2xl bg-blue-600 px-8 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-all">
-            <Download className="h-5 w-5" />
-            Export
-          </button>
-        </div>
-      </div>
-
+    <div className="container mx-auto p-4 md:p-6">
       {/* Main Content Table Area */}
-      <div className="md:rounded-[2.5rem] rounded-md bg-card p-4 md:p-8 border border-border shadow-sm">
+      <div className="rounded-[2.5rem] bg-card p-4 md:p-8 border border-border shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-full text-left">
+          <table className="w-full text-left">
             <thead>
-              <tr className="bg-muted md:rounded-2xl rounded-md overflow-hidden">
-                <th className="px-3 md:px-4 first:rounded-l-2xl hidden sm:table-cell">
+              <tr className="bg-muted rounded-2xl overflow-hidden">
+                <th className="px-4 first:rounded-l-2xl">
                   <input
                     type="checkbox"
                     className="h-5 w-5 rounded-md border-border text-blue-600 focus:ring-blue-500"
                   />
                 </th>
-                <th className="px-3 md:px-4 py-3 font-semibold text-xs md:text-sm text-muted-foreground">
+                <th className="px-4 py-3 font-semibold text-muted-foreground">
                   User
                 </th>
-                <th className="px-3 md:px-4 py-3 font-semibold text-xs md:text-sm text-muted-foreground">
+                <th className="px-4 py-3 font-semibold text-muted-foreground">
                   Event
                 </th>
-                <th className="px-3 md:px-4 py-3 font-semibold text-xs md:text-sm text-muted-foreground hidden md:table-cell">
+                <th className="px-4 py-3 font-semibold text-muted-foreground">
                   Type
                 </th>
-                <th className="px-3 md:px-4 py-3 font-semibold text-xs md:text-sm text-muted-foreground hidden lg:table-cell">
+                <th className="px-4 py-3 font-semibold text-muted-foreground">
                   Description
                 </th>
-                <th className="px-3 md:px-4 py-3 font-semibold text-xs md:text-sm text-muted-foreground last:rounded-r-2xl">
+                <th className="px-4 py-3 font-semibold text-muted-foreground last:rounded-r-2xl">
                   Timeline date
                 </th>
               </tr>
@@ -153,77 +136,68 @@ export default function ActivityLogsPage() {
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="px-3 md:px-4 py-8 text-center text-muted-foreground"
-                  >
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                     Loading logs...
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="px-3 md:px-4 py-8 text-center text-muted-foreground"
-                  >
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                     No activity logs found
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => (
-                  <tr
-                    key={log.id}
-                    className="group hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="px-3 md:px-4 py-3 hidden sm:table-cell">
+                paginatedLogs.map((log) => (
+                  <tr key={log.id} className="group hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         className="h-5 w-5 rounded-md border-border text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td className="px-3 md:px-4 py-3">
-                      <div className="flex items-center gap-2 md:gap-3">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
                         <UserAvatar
                           user={{
                             name: log.user_name,
                             email: log.user_email,
-                            avatar: (log as any).user_avatar || "", // No avatar in logs response yet, use initials
+                            avatar: (log as any).user_avatar || "" // No avatar in logs response yet, use initials
                           }}
                           size={40}
-                          className="h-8 md:h-10 w-8 md:w-10 border border-border flex-shrink-0"
+                          className="h-10 w-10 border border-border"
                         />
-                        <div className="min-w-0">
-                          <span className="font-semibold text-xs md:text-sm text-foreground block truncate">
+                        <div>
+                          <span className="font-semibold text-foreground block">
                             {log.user_name}
                           </span>
-                          <span className="text-xs text-muted-foreground hidden md:block truncate">
+                          <span className="text-xs text-muted-foreground">
                             {log.user_email}
                           </span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 md:px-4 py-3">
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="p-1 md:p-1.5 rounded-lg border border-border bg-white group-hover:bg-blue-50 transition-colors flex-shrink-0">
+                        <div className="p-1.5 rounded-lg border border-border bg-white group-hover:bg-blue-50 transition-colors">
                           {getEventIcon(log.log_type)}
                         </div>
-                        <span className="text-xs md:text-sm font-medium truncate">
+                        <span className="text-sm font-medium">
                           {getEventName(log.log_type)}
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 md:px-4 py-3 hidden md:table-cell">
-                      <span className="px-2 md:px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold border border-blue-100 whitespace-nowrap">
+                    <td className="px-4 py-3">
+                      <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold border border-blue-100">
                         {log.entity_type}
                       </span>
                     </td>
-                    <td className="px-3 md:px-4 py-3 hidden lg:table-cell">
-                      <p className="text-xs md:text-sm text-muted-foreground truncate max-w-xs">
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-muted-foreground truncate max-w-[300px]">
                         {log.description}
                       </p>
                     </td>
-                    <td className="px-3 md:px-4 py-3">
-                      <p className="text-xs md:text-sm font-medium text-foreground whitespace-nowrap">
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium text-foreground whitespace-nowrap">
                         {formatDate(log.created_at)}
                       </p>
                     </td>
@@ -236,23 +210,43 @@ export default function ActivityLogsPage() {
 
         {/* Pagination Footer */}
         <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 px-2">
-          <p className="text-sm font-medium text-muted-foreground">
-            Showing <span className="text-foreground">1 to {logs.length}</span>{" "}
-            of <span className="text-foreground">{logs.length} logs</span>
-          </p>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Items per page:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="h-9 w-[70px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground hidden md:block">
+              Showing <span className="text-foreground">{logs.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, logs.length)}</span> of{" "}
+              <span className="text-foreground">{logs.length} logs</span>
+            </p>
+          </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
               className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
-              disabled
             >
               Previous
             </button>
             <span className="px-4 py-2 text-sm font-bold bg-muted rounded-xl border border-border">
-              1 of 1
+              {currentPage} of {totalPages}
             </span>
             <button
-              className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted transition-colors"
-              disabled
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
             >
               Next
             </button>

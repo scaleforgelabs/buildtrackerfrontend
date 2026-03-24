@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Trash2, MoreVertical, Plus, Calendar, Clock, ArrowUp, Upload, MoreHorizontal } from "lucide-react";
+import { Trash2, MoreVertical, Plus, Calendar, Clock, ArrowUp, Upload, MoreHorizontal, Edit2 } from "lucide-react";
 import AddPersonalTaskModal from "@/app/components/modals/AddPersonalTaskModal";
+import EditPersonalTaskModal from "@/app/components/modals/EditPersonalTaskModal";
 import { personalTasksService } from "@/libs/api/services";
 
 interface PersonalTask {
@@ -16,6 +17,8 @@ const MyTasksPage = () => {
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<PersonalTask | null>(null);
 
   useEffect(() => {
     fetchTasks();
@@ -67,6 +70,22 @@ const MyTasksPage = () => {
           task.id === id ? { ...task, completed: currentCompleted } : task,
         ),
       );
+    }
+  };
+
+  const handleEditTask = async (id: string, updatedData: { title: string; deadline?: string }) => {
+    try {
+      // Optimistic update
+      setTasks(
+        tasks.map((task) =>
+          task.id === id ? { ...task, ...updatedData } : task
+        )
+      );
+      await personalTasksService.updateTask(id, updatedData);
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      // Reload on failure to ensure data integrity
+      fetchTasks();
     }
   };
 
@@ -218,9 +237,15 @@ const MyTasksPage = () => {
                       >
                         <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
                       </button>
-
-                      <button className="rounded-full p-2 text-muted-foreground transition-colors bg-background hover:text-card-foreground">
-                        <MoreHorizontal className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <button
+                        onClick={() => {
+                          setEditingTask(task);
+                          setIsEditModalOpen(true);
+                        }}
+                        className="rounded-full p-2 text-muted-foreground transition-colors bg-background hover:text-card-foreground"
+                        title="Edit Task"
+                      >
+                        <Edit2 className="h-5 w-5" />
                       </button>
                     </div>
                   </div>
@@ -236,6 +261,16 @@ const MyTasksPage = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAddTask={handleAddTask}
+      />
+
+      <EditPersonalTaskModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingTask(null);
+        }}
+        task={editingTask}
+        onEditTask={handleEditTask}
       />
     </div>
   );
