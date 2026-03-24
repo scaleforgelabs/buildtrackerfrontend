@@ -16,17 +16,18 @@ export default function QuickLinksPage() {
   const { user } = useAuth();
   const [links, setLinks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+
+  const totalPages = Math.ceil(links.length / itemsPerPage) || 1;
+  const paginatedLinks = links.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     const fetchLinks = async () => {
       if (currentWorkspace?.id) {
         setLoading(true);
         try {
-          // Fetch shared quick links
-          const sharedLinksRes = await quickLinksService.getSharedQuickLinks(
-            currentWorkspace.id,
-            { _t: Date.now() },
-          );
+          const sharedLinksRes = await quickLinksService.getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() });
           const sharedLinks = sharedLinksRes.data.shared_links || [];
 
           setLinks(sharedLinks);
@@ -47,7 +48,6 @@ export default function QuickLinksPage() {
         open={open}
         onClose={() => setOpen(false)}
         onLinkAdded={() => {
-          // Refresh links
           if (currentWorkspace?.id) {
             quickLinksService
               .getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() })
@@ -81,7 +81,7 @@ export default function QuickLinksPage() {
           <div className="flex justify-center py-8">Loading...</div>
         ) : links.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {links.map((link: any) => (
+            {paginatedLinks.map((link: any) => (
               <QuickLinkCard
                 key={link.id}
                 id={link.id}
@@ -114,6 +114,53 @@ export default function QuickLinksPage() {
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             No quick links found. Add your first link!
+          </div>
+        )}
+
+        {/* Pagination Footer */}
+        {links.length > 0 && !loading && (
+          <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 px-2">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Items per page:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="h-9 w-[70px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value={12}>12</option>
+                  <option value={24}>24</option>
+                  <option value={48}>48</option>
+                  <option value={96}>96</option>
+                </select>
+              </div>
+              <p className="text-sm font-medium text-muted-foreground hidden md:block">
+                Showing <span className="text-foreground">{links.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, links.length)}</span> of{" "}
+                <span className="text-foreground">{links.length} links</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                Previous
+              </button>
+              <span className="px-4 py-2 text-sm font-bold bg-muted rounded-xl border border-border">
+                {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
