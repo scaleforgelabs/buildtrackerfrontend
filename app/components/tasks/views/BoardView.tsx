@@ -42,8 +42,8 @@ const BoardColumn = ({
   onTaskClick,
 }: BoardColumnProps) => {
   return (
-    <div className="flex flex-col rounded-2xl bg-muted/30 p-4 border border-border min-h-[500px] transition-colors">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col rounded-2xl  min-h-[500px] transition-colors">
+      <div className="flex items-center justify-between mb-6 bg-muted py-2 px-4 rounded-md ">
         <div className="flex items-center gap-2">
           <Image
             src={image}
