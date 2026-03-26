@@ -105,7 +105,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        if (fetchedWorkspaces.length > 0 && (pathname === '/dashboard' || pathname === '/')) {
+        if (fetchedWorkspaces.length > 0 && (pathname === '/dashboard' || pathname === '/' || pathname === '/home')) {
           const lastId = user?.last_active_workspace || localStorage.getItem('lastWorkspaceId');
           const workspaceToRedirect = fetchedWorkspaces.find((ws: Workspace) => ws.id === lastId) || fetchedWorkspaces[0];
           router.replace(`/${workspaceToRedirect.id}/home`);

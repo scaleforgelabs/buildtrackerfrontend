@@ -7,8 +7,11 @@ import { Menu, X } from "lucide-react";
 import { Images } from "@/public";
 import { Button } from "@/app/components/ui/button";
 
+import { useAuth } from "@/libs/hooks/useAuth";
+
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -48,19 +51,29 @@ export const Navbar = () => {
 
           {/* Desktop Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link href="/login">
-              <Button
-                variant="outline"
-                className="rounded-full px-5 h-10 border-primary text-primary hover:bg-primary/5 font-semibold"
-              >
-                Login
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button className="rounded-full px-5 h-10 bg-primary hover:bg-primary/90 text-white shadow-md font-semibold">
-                Sign up
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/home">
+                <Button className="rounded-full px-6 h-10 bg-primary hover:bg-primary/90 text-white shadow-md font-semibold">
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button
+                    variant="outline"
+                    className="rounded-full px-5 h-10 border-primary text-primary hover:bg-primary/5 font-semibold"
+                  >
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button className="rounded-full px-5 h-10 bg-primary hover:bg-primary/90 text-white shadow-md font-semibold">
+                    Sign up
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -92,19 +105,29 @@ export const Navbar = () => {
           </div>
 
           <div className="flex flex-col space-y-3 pt-4">
-            <Link href="/login">
-              <Button
-                variant="outline"
-                className="w-full rounded-full border-primary text-primary hover:bg-primary/5 font-semibold"
-              >
-                Login
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button className="w-full rounded-full bg-primary hover:bg-primary/90 text-white shadow-md font-semibold">
-                Sign up
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/home">
+                <Button className="w-full rounded-full bg-primary hover:bg-primary/90 text-white shadow-md font-semibold">
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-full border-primary text-primary hover:bg-primary/5 font-semibold"
+                  >
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button className="w-full rounded-full bg-primary hover:bg-primary/90 text-white shadow-md font-semibold">
+                    Sign up
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

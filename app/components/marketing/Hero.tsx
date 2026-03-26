@@ -2,11 +2,15 @@
 
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/app/components/ui/button";
 import { Images } from "@/public";
+import { useAuth } from "@/libs/hooks/useAuth";
 
 export function Hero() {
+    const { isAuthenticated } = useAuth();
+
     return (
         <section className="relative pt-16 md:pt-24 pb-20 px-4 md:px-8 overflow-hidden pl-0 md:pl-20">
             <div className=" mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
@@ -48,9 +52,11 @@ export function Hero() {
                         transition={{ duration: 0.5, delay: 0.3 }}
                         className="pt-4"
                     >
-                        <Button className="rounded-full px-12 h-14 bg-primary hover:bg-primary/90 text-white text-lg font-bold transition-all hover:scale-105 active:scale-95">
-                            Get Started
-                        </Button>
+                        <Link href={isAuthenticated ? "/home" : "/signup"}>
+                            <Button className="rounded-full px-12 h-14 bg-primary hover:bg-primary/90 text-white text-lg font-bold transition-all hover:scale-105 active:scale-95">
+                                {isAuthenticated ? "Go to Dashboard" : "Get Started"}
+                            </Button>
+                        </Link>
                     </motion.div>
                 </div>
 
