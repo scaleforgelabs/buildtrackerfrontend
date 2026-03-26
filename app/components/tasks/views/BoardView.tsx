@@ -78,41 +78,22 @@ const BoardColumn = ({
   );
 };
 
-const BoardView = () => {
+const BoardView = ({ tasks, loading, onTasksChange }: {
+  tasks: TaskData[];
+  loading: boolean;
+  onTasksChange: (tasks: TaskData[]) => void;
+}) => {
   const { currentWorkspace } = useWorkspace();
   const router = useRouter();
-  const [tasks, setTasks] = useState<TaskData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-
-    const fetchTasks = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get(
-          `/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`,
-        );
-        setTasks(response.data.results?.data || []);
-      } catch (error) {
-        console.error("Failed to fetch tasks:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-  }, [currentWorkspace?.id]);
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     const oldTasks = [...tasks];
 
     // OPTIMISTIC UPDATE: Update UI instantly
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId ? { ...task, status: newStatus } : task,
-      ),
+    const updatedTasks = tasks.map((task) =>
+      task.id === taskId ? { ...task, status: newStatus } : task
     );
+    onTasksChange(updatedTasks);
 
     try {
       await api.put(`/tasks/${currentWorkspace?.id}/tasks/${taskId}/status/`, {
@@ -122,7 +103,7 @@ const BoardView = () => {
     } catch (error) {
       console.error("Failed to update task status:", error);
       // REVERT: Fallback to old state if API fails
-      setTasks(oldTasks);
+      onTasksChange(oldTasks);
     }
   };
 

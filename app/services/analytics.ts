@@ -19,6 +19,8 @@ export interface DashboardCharts {
     trendData: { date: string; label: string; value: number }[];
     memberPerformance: {
         member_name: string;
+        member_first_name?: string;
+        member_last_name?: string;
         member_email: string;
         member_avatar?: string;
         tasks_assigned: number;
@@ -43,6 +45,7 @@ export interface PerformanceAnalytics {
         severity: string;
         description: string;
         impact_score: number;
+        ticket_number?: number;
     }[];
     milestoneMetrics: any[];
     sprintMetrics: any[];

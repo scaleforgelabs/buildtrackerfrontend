@@ -175,7 +175,12 @@ function KanbanColumn({
   );
 }
 
-export default function KanbanBoard() {
+export default function KanbanBoard({ tasks, loading, onTasksChange, onRefresh }: {
+  tasks: TaskData[];
+  loading: boolean;
+  onTasksChange: (tasks: TaskData[]) => void;
+  onRefresh: () => void;
+}) {
   const { currentWorkspace } = useWorkspace();
   const [columns, setColumns] = useState<Record<ColumnId, TaskData[]>>({
     pending: [],
@@ -183,30 +188,14 @@ export default function KanbanBoard() {
     completed: [],
   });
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [createTaskStatus, setCreateTaskStatus] = useState<string>("pending");
 
-  const fetchTasks = async () => {
-    if (!currentWorkspace?.id) return;
-    try {
-      setLoading(true);
-      const response = await api.get(
-        `/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`,
-      );
-      const tasks = response.data.results?.data || [];
-      setColumns(getInitialData(tasks));
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Sync parent tasks into columns
   useEffect(() => {
-    fetchTasks();
-  }, [currentWorkspace?.id]);
+    setColumns(getInitialData(tasks));
+  }, [tasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -352,7 +341,7 @@ export default function KanbanBoard() {
         isOpen={isCreateTaskOpen}
         onClose={() => setIsCreateTaskOpen(false)}
         initialStatus={createTaskStatus}
-        onTaskCreated={() => fetchTasks()}
+        onTaskCreated={() => onRefresh()}
       />
     </DndContext>
   );

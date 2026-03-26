@@ -9,9 +9,13 @@ import {
   CirclePlus,
   ChevronDown,
   FilePlus,
-  ArrowUpDown
+  ArrowUpDown,
+  Folder
 } from "lucide-react";
-import { cn } from "@/libs/utils"
+import { RenameModal } from "@/app/components/wiki/RenameModal";
+import { toast } from "sonner";
+import { cn, getFileIcon as getUtilityIcon } from "@/libs/utils"
+import { useAuth } from "@/libs/hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import { useSearchParams } from "next/navigation";
@@ -25,11 +29,17 @@ import AddNewDocumentModal from "@/app/components/wiki/modal/AddNewDocumentModal
 import AddNewFolderModal from "@/app/components/wiki/modal/AddNewFolder";
 import UploadFileModal from "@/app/components/wiki/modal/UploadFileModal";
 import { WikiTableView } from "@/app/components/wiki/WikiTableView";
+import { ContextMenu } from "@/app/components/wiki/ContextMenu";
+import { DeleteConfirmationModal } from "@/app/components/wiki/modal/DeleteConfirmationModal";
+import { Trash2, Download, Edit2, X, MoreVertical } from "lucide-react";
 
-type Folder = {
+type FolderData = {
   id: string;
   name: string;
-  created_by_user?: { avatar?: string };
+  created_by_user?: { id: string; avatar?: string; first_name?: string; last_name?: string; email?: string };
+  total_size?: number;
+  contributors?: any[];
+  item_count?: number;
 };
 
 type FileItem = {
@@ -38,38 +48,28 @@ type FileItem = {
   uploaded_at: string;
   file_size?: number;
   uploaded_by_user?: { first_name: string; last_name: string; email: string; avatar?: string };
+  file_url?: string;
+  file?: string;
 };
 
 
-const EXT_ICON_MAP: Record<string, string> = {
-  pdf: "/images/pdf_icon.svg",
-  doc: "/images/doc_icon.svg",
-  docx: "/images/docx_icon.svg",
-  xls: "/images/xls_icon.svg",
-  xlsx: "/images/xls_icon.svg",
-  ppt: "/images/ppt_icon.svg",
-  pptx: "/images/pptx_icon.svg",
-  png: "/images/png_icon.svg",
-  jpg: "/images/jpg_icon.svg",
-  jpeg: "/images/jpeg_icon.svg",
-  gif: "/images/gif_icon.svg",
-  webp: "/images/webp_icon.svg",
-  svg: "/images/svg_icon.svg",
-  txt: "/images/txt_icon.svg",
-  csv: "/images/csv_icon.svg",
-  zip: "/images/zip_icon.svg",
-  rar: "/images/zip_icon.svg",
-  mp4: "/images/mp4_icon.svg",
-  mov: "/images/mp4_icon.svg",
-  avi: "/images/mp4_icon.svg",
-  mp3: "/images/mp3_icon.svg",
-};
+
 
 function getDocCover(d: any): string {
   if (d.image) return d.image;
-  const firstName = (d.attachments as any[])?.find((a: any) => a.file_name)?.file_name ?? "";
-  const ext = firstName.split(".").pop()?.toLowerCase() ?? "";
-  return EXT_ICON_MAP[ext] ?? "";
+  const attachments = (d.attachments as any[]) || [];
+
+  // Try to find an actual image in the attachments
+  const imageAttachment = attachments.find((a: any) => {
+    const ext = a.file_name?.split('.').pop()?.toLowerCase();
+    return ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "tiff", "tif", "heic", "heif", "ico", "avif"].includes(ext);
+  });
+
+  if (imageAttachment) {
+    return imageAttachment.file_url || imageAttachment.file;
+  }
+
+  return Images.banner.src;
 }
 
 type Doc = {
@@ -85,6 +85,7 @@ type Doc = {
     avatar?: string;
   };
   size?: number;
+  attachments?: any[];
 };
 
 function WikiPageContent() {
@@ -92,19 +93,65 @@ function WikiPageContent() {
   const [showFolders, setShowFolders] = useState(true);
   const [showDocuments, setShowDocuments] = useState(true);
   const [gridView, setGridView] = useState(true);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [itemToRename, setItemToRename] = useState<any>(null);
+
+  const handleRenameConfirm = async (newName: string) => {
+    if (!itemToRename || !currentWorkspace?.id) return;
+    try {
+      if (itemToRename.kind === 'folder') {
+        await filesService.renameFolder(currentWorkspace.id, itemToRename.id, { name: newName });
+        fetchFolders(currentFolderId || undefined);
+      } else if (itemToRename.kind === 'file') {
+        await filesService.renameFile(itemToRename.id, { file_name: newName });
+        fetchFolders(currentFolderId || undefined);
+      } else if (itemToRename.kind === 'document') {
+        await wikiService.updateDocument(currentWorkspace.id, String(itemToRename.id), { document_title: newName });
+        fetchDocuments();
+      }
+      toast.success("Renamed successfully");
+    } catch (error) {
+      console.error("Rename failed:", error);
+      toast.error("Failed to rename item");
+    }
+  };
   const [open, setOpen] = useState(false);
   const [openFolder, setOpenFolder] = useState(false);
   const [openFile, setOpenFile] = useState(false);
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const [folders, setFolders] = useState<FolderData[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [folderFiles, setFolderFiles] = useState<{ [key: string]: FileItem[] }>({});
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<Array<{ id: string | null; name: string }>>([{ id: null, name: 'Root' }]);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: any } | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean, items: any[] }>({ open: false, items: [] });
+  const [renamingItem, setRenamingItem] = useState<any | null>(null);
+
   const { currentWorkspace } = useWorkspace();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
 
   const [documents, setDocuments] = useState<Doc[]>([]);
+  const { user } = useAuth();
+
+  const canEditResource = (item: any) => {
+    if (!currentWorkspace || !user) return false;
+    if (["Owner", "Admin"].includes(currentWorkspace.user_role)) return true;
+
+    const creatorId =
+      item.author?.id ||
+      item.created_by_user?.id ||
+      item.uploaded_by_user?.id ||
+      item.uploaded_by?.id ||
+      item.created_by?.id ||
+      item.owner?.id ||
+      item.uploaded_by_user_id || // Some fallback if needed
+      (typeof item.author === 'string' ? item.author : null);
+
+    return creatorId === user.id;
+  };
 
   useEffect(() => {
     if (currentWorkspace?.id) {
@@ -130,6 +177,7 @@ function WikiPageContent() {
           image: getDocCover(d),
           author: d.author,
           size: totalSize,
+          attachments: d.attachments,
         };
       }) : [];
       setDocuments(mappedDocs);
@@ -147,46 +195,34 @@ function WikiPageContent() {
       setFolders(folders);
       setFiles(files);
 
-      const filesMap: { [key: string]: FileItem[] } = {};
-      for (const folder of folders) {
-        const folderRes = await filesService.getFolderContents(currentWorkspace?.id!, folder.id);
-        filesMap[folder.id] = folderRes.data.files || [];
-      }
-      setFolderFiles(filesMap);
+      // Reverted breadcrumb update from backend
+      // setBreadcrumbs([{ id: null, name: 'Wiki' }, ...backendCrumbs]);
+
+      // No longer need to fetch subfolder files one-by-one as backend provides total_size and contributors
+      setFolderFiles({});
     } catch (error) {
       console.error('Failed to fetch folders:', error);
     }
   };
 
   const getFolderStats = (folderId: string) => {
-    const filesInFolder = folderFiles[folderId] || [];
-    let totalSize = 0;
-    let lastModified: Date | null = null;
-    const membersMap = new Map<string, { avatar?: string; name: string }>();
+    const folder = folders.find(f => f.id === folderId) as any;
 
-    for (const file of filesInFolder) {
-      totalSize += file.file_size || 0;
-      const fileDate = new Date(file.uploaded_at);
-      if (!lastModified || fileDate > lastModified) {
-        lastModified = fileDate;
-      }
-      if (file.uploaded_by_user) {
-        const name = `${file.uploaded_by_user.first_name} ${file.uploaded_by_user.last_name}`.trim() || file.uploaded_by_user.email;
-        membersMap.set(file.uploaded_by_user.email, {
-          avatar: file.uploaded_by_user.avatar,
-          name: name
-        });
-      }
-    }
+    // Use recursive size from backend, fallback to 0
+    const totalSize = folder?.total_size || 0;
 
-    const membersList = Array.from(membersMap.values());
+    // We can only show lastModified if we have the data, for now keep it simple or hide it
+    const lastModified = "–";
+
+    // Use contributors from backend
+    const members = folder?.contributors || [];
 
     return {
       totalSize,
-      lastModified: lastModified ? lastModified.toLocaleDateString() : "–",
-      members: membersList.map(m => ({ avatar: m.avatar })),
-      // Use the first person who uploaded a file as owner, fallback to folder creator if possible
-      owner: membersList[0] || (folders.find(f => f.id === folderId)?.created_by_user ? { avatar: folders.find(f => f.id === folderId)?.created_by_user?.avatar, name: "Folder Creator" } : undefined)
+      lastModified: folder?.updated_at ? formatDistanceToNow(new Date(folder.updated_at), { addSuffix: true }) : "–",
+      members,
+      owner: folder?.created_by_user,
+      itemCount: folder?.item_count || 0
     };
   };
 
@@ -202,7 +238,73 @@ function WikiPageContent() {
     const folderId = newBreadcrumbs[index].id;
     setCurrentFolderId(folderId);
     fetchFolders(folderId || undefined);
+    setSelectedIds([]);
   };
+
+  const handleAction = async (action: 'download' | 'delete' | 'rename' | 'open', item?: any) => {
+    const itemsToProcess = item ? [item] : (selectedIds.map(id => {
+      const f = files.find(f => f.id === id);
+      const fold = folders.find(f => f.id === id);
+      const doc = documents.find(d => String(d.id) === id);
+      return f ? { ...f, kind: 'file' } : fold ? { ...fold, kind: 'folder' } : doc ? { ...doc, kind: 'document' } : null;
+    }).filter(Boolean));
+
+    if (itemsToProcess.length === 0) return;
+
+    switch (action) {
+      case 'open':
+        if (itemsToProcess[0].kind === 'folder') {
+          handleOpenFolder(itemsToProcess[0].id, itemsToProcess[0].name || itemsToProcess[0].title);
+        }
+        break;
+      case 'download':
+        for (const it of itemsToProcess) {
+          if (it.kind === 'file') {
+            try {
+              const res = await filesService.downloadFile(it.id);
+              const url = res.data.file?.file_url || res.data.download_url;
+              if (url) window.open(url, '_blank');
+            } catch (err) { console.error(err); }
+          } else if (it.kind === 'document') {
+            const attachment = it.attachments?.[0];
+            const url = attachment?.file_url || attachment?.file;
+            if (url) window.open(url, '_blank');
+          }
+        }
+        break;
+      case 'delete':
+        setDeleteModal({ open: true, items: itemsToProcess });
+        break;
+      case 'rename':
+        if (itemsToProcess.length === 1) {
+          setItemToRename(itemsToProcess[0]);
+          setRenameModalOpen(true);
+        }
+        break;
+    }
+    setContextMenu(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!currentWorkspace?.id) return;
+    try {
+      for (const item of deleteModal.items) {
+        if (item.kind === 'file') {
+          await filesService.deleteFile(item.id);
+        } else if (item.kind === 'folder') {
+          await filesService.deleteFolder(currentWorkspace.id, item.id);
+        } else if (item.kind === 'document') {
+          await wikiService.deleteDocument(currentWorkspace.id, String(item.id));
+        }
+      }
+      fetchFolders(currentFolderId || undefined);
+      fetchDocuments();
+      setSelectedIds([]);
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+  };
+
 
   return (
     <div className="p-6 space-y-8 bg-muted min-h-screen">
@@ -212,6 +314,36 @@ function WikiPageContent() {
           Manage workspace documents and browse template marketplace
         </p>
       </div>
+
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between bg-primary/10 border border-primary/20 p-3 rounded-xl animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="p-1.5 hover:bg-primary/20 rounded-lg transition-colors text-primary"
+            >
+              <X size={18} />
+            </button>
+            <span className="font-semibold text-primary">{selectedIds.length} selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleAction('download')}
+              className="p-2 hover:bg-primary/20 rounded-lg transition-colors text-primary"
+              title="Download selected"
+            >
+              <Download size={20} />
+            </button>
+            <button
+              onClick={() => handleAction('delete')}
+              className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-destructive"
+              title="Delete selected"
+            >
+              <Trash2 size={20} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="inline-flex rounded-lg bg-background p-1 border shadow-sm">
         <button
@@ -263,7 +395,6 @@ function WikiPageContent() {
               ))}
             </div>
           )}
-
           {/* Folders & Files Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -339,11 +470,30 @@ function WikiPageContent() {
                         key={folder.id}
                         folderId={folder.id}
                         title={folder.name}
-                        items={folderFiles[folder.id]?.length || 0}
-                        avatars={[folder.created_by_user?.avatar].filter((a): a is string => Boolean(a))}
+                        items={folder.item_count || 0}
+                        contributors={folder.contributors}
                         view="grid"
+                        isSelected={selectedIds.includes(String(folder.id))}
+                        isRenaming={false} // Disable inline renaming
+                        onRename={() => {
+                          setItemToRename({ ...folder, id: String(folder.id), kind: 'folder' });
+                          setRenameModalOpen(true);
+                        }}
+                        onSelect={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          const isMeta = e.ctrlKey || e.metaKey;
+                          if (isMeta) {
+                            setSelectedIds(v => v.includes(String(folder.id)) ? v.filter(id => id !== String(folder.id)) : [...v, String(folder.id)]);
+                          }
+                          // Otherwise do nothing for selection on card click
+                        }}
+                        onContextMenu={(e: React.MouseEvent) => {
+                          e.preventDefault();
+                          setContextMenu({ x: e.clientX, y: e.clientY, item: { ...folder, id: String(folder.id), kind: 'folder' } });
+                        }}
+                        onRenameSuccess={() => setRenamingItem(null)}
                         onOpen={() => handleOpenFolder(folder.id, folder.name)}
-                        onRename={() => fetchFolders(currentFolderId || undefined)}
+                        canEdit={canEditResource(folder)}
                       />
                     ))}
 
@@ -352,20 +502,44 @@ function WikiPageContent() {
                         key={file.id}
                         fileId={file.id}
                         fileName={file.file_name}
+                        url={file.file_url || file.file}
                         fileType={file.file_name.split('.').pop()?.toUpperCase() || 'FILE'}
                         uploadedAt={new Date(file.uploaded_at).toLocaleDateString()}
-                        owner={file.uploaded_by_user
-                          ? `${file.uploaded_by_user.first_name} ${file.uploaded_by_user.last_name}`.trim() || file.uploaded_by_user.email
-                          : 'Unknown'}
+                        isSelected={selectedIds.includes(String(file.id))}
+                        isRenaming={false}
+                        onRenameSuccess={() => setRenamingItem(null)}
+                        onRename={() => {
+                          setItemToRename({ ...file, id: String(file.id), kind: 'file' });
+                          setRenameModalOpen(true);
+                        }}
+                        onSelect={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          const isMeta = e.ctrlKey || e.metaKey;
+                          if (isMeta) {
+                            setSelectedIds(v => v.includes(String(file.id)) ? v.filter(id => id !== String(file.id)) : [...v, String(file.id)]);
+                          }
+                          // Otherwise do nothing for selection on card click
+                        }}
+                        onContextMenu={(e: React.MouseEvent) => {
+                          e.preventDefault();
+                          setContextMenu({ x: e.clientX, y: e.clientY, item: { ...file, id: String(file.id), kind: 'file' } });
+                        }}
+                        owner={file.uploaded_by_user?.first_name ? `${file.uploaded_by_user.first_name} ${file.uploaded_by_user.last_name || ''}` : file.uploaded_by_user?.email || 'Nth'}
+                        uploaded_by_user={file.uploaded_by_user}
                         ownerAvatar={file.uploaded_by_user?.avatar}
                         fileSize={file.file_size}
                         view="grid"
-                        onRename={() => fetchFolders(currentFolderId || undefined)}
+                        canEdit={canEditResource(file)}
                       />
                     ))}
                   </div>
                 ) : (
                   <WikiTableView
+                    selectedIds={selectedIds}
+                    renamingItemId={renamingItem || undefined}
+                    onSelectionChange={setSelectedIds}
+                    onContextMenu={(e, item) => setContextMenu({ x: e.clientX, y: e.clientY, item })}
+                    onRenameSuccess={() => setRenamingItem(null)}
                     sections={[{
                       label: "Folders & Files",
                       count: folders.length + files.length,
@@ -376,27 +550,35 @@ function WikiPageContent() {
                         ).map(folder => {
                           const stats = getFolderStats(folder.id);
                           return {
-                            id: folder.id,
+                            id: String(folder.id),
                             kind: "folder" as const,
                             name: folder.name,
                             modifiedAt: stats.lastModified,
                             size: stats.totalSize,
                             owner: stats.owner,
                             members: stats.members,
-                            itemCount: folderFiles[folder.id]?.length || 0,
+                            itemCount: folder.item_count || 0,
                             onOpen: () => handleOpenFolder(folder.id, folder.name),
-                            onRename: () => fetchFolders(currentFolderId || undefined),
+                            onRename: () => {
+                              setItemToRename({ ...folder, id: String(folder.id), kind: 'folder' });
+                              setRenameModalOpen(true);
+                            },
                           };
                         }),
                         ...files.map(file => ({
-                          id: file.id,
+                          id: String(file.id),
                           kind: "file" as const,
                           name: file.file_name,
-                          modifiedAt: new Date(file.uploaded_at).toLocaleDateString(),
+                          url: file.file_url || file.file,
+                          modifiedAt: file.uploaded_at ? formatDistanceToNow(new Date(file.uploaded_at), { addSuffix: true }) : "–",
                           size: file.file_size,
                           owner: file.uploaded_by_user,
-                          members: file.uploaded_by_user ? [{ avatar: file.uploaded_by_user.avatar }] : [],
-                          onRename: () => fetchFolders(currentFolderId || undefined),
+                          members: file.uploaded_by_user ? [file.uploaded_by_user] : [],
+                          onRename: () => {
+                            setItemToRename({ ...file, id: String(file.id), kind: 'file' });
+                            setRenameModalOpen(true);
+                          },
+                          onDownload: () => handleAction('download', { ...file, kind: 'file' }),
                         })),
                       ],
                     }]}
@@ -406,6 +588,10 @@ function WikiPageContent() {
             )}
             {showFolders && currentFolderId !== null && (
               <WikiTableView
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                onContextMenu={(e, item) => setContextMenu({ x: e.clientX, y: e.clientY, item })}
+                onRenameSuccess={() => setRenamingItem(null)}
                 sections={[{
                   label: "Folders & Files",
                   count: folders.length + files.length,
@@ -420,20 +606,28 @@ function WikiPageContent() {
                         size: stats.totalSize,
                         owner: stats.owner,
                         members: stats.members,
-                        itemCount: folderFiles[folder.id]?.length || 0,
+                        itemCount: folder.item_count || 0,
                         onOpen: () => handleOpenFolder(folder.id, folder.name),
-                        onRename: () => fetchFolders(currentFolderId || undefined),
+                        onRename: () => {
+                          setItemToRename({ ...folder, id: String(folder.id), kind: 'folder' });
+                          setRenameModalOpen(true);
+                        },
+                        onDownload: () => handleAction('download', { ...folder, kind: 'folder' }),
                       };
                     }),
                     ...files.map(file => ({
                       id: file.id,
                       kind: "file" as const,
                       name: file.file_name,
-                      modifiedAt: new Date(file.uploaded_at).toLocaleDateString(),
+                      url: file.file_url || file.file,
+                      modifiedAt: file.uploaded_at ? formatDistanceToNow(new Date(file.uploaded_at), { addSuffix: true }) : "–",
                       size: file.file_size,
                       owner: file.uploaded_by_user,
-                      members: file.uploaded_by_user ? [{ avatar: file.uploaded_by_user.avatar }] : [],
-                      onRename: () => fetchFolders(currentFolderId || undefined),
+                      members: file.uploaded_by_user ? [file.uploaded_by_user] : [],
+                      onRename: () => {
+                        setItemToRename({ ...file, id: String(file.id), kind: 'file' });
+                        setRenameModalOpen(true);
+                      },
                     })),
                   ],
                 }]}
@@ -511,11 +705,38 @@ function WikiPageContent() {
                         fileType={doc.type}
                         user={doc.author}
                         view="grid"
+                        isRenaming={false} // Disable inline renaming
+                        onOpen={() => handleAction('view' as any, { ...doc, kind: 'document' })}
+                        onContextMenu={(e) => {
+                          setContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            item: {
+                              id: String(doc.id),
+                              kind: 'document',
+                              name: doc.title,
+                              size: doc.size,
+                              owner: doc.author,
+                              members: doc.author ? [doc.author] : [],
+                              attachments: doc.attachments,
+                              onRename: () => {
+                                setItemToRename({ ...doc, id: String(doc.id), kind: 'document' });
+                                setRenameModalOpen(true);
+                              }
+                            }
+                          });
+                        }}
+                        canEdit={canEditResource(doc)}
                       />
                     ))}
                   </div>
                 ) : (
                   <WikiTableView
+                    selectedIds={selectedIds}
+                    onSelectionChange={setSelectedIds}
+                    renamingItemId={renamingItem}
+                    onRenameSuccess={() => setRenamingItem(null)}
+                    onContextMenu={(e, item) => setContextMenu({ x: e.clientX, y: e.clientY, item })}
                     sections={[{
                       label: "Documents",
                       count: documents.length,
@@ -529,7 +750,15 @@ function WikiPageContent() {
                         modifiedAt: doc.time,
                         size: doc.size,
                         owner: doc.author,
-                        members: doc.author ? [{ avatar: doc.author?.avatar }] : [],
+                        members: doc.author ? [doc.author] : [],
+                        url: doc.image,
+                        onDownload: () => handleAction('download', { ...doc, kind: 'document' }),
+                        attachments: doc.attachments,
+                        onRename: () => {
+                          setItemToRename({ ...doc, kind: 'document' });
+                          setRenameModalOpen(true);
+                        },
+                        onDelete: () => handleAction('delete', { ...doc, kind: 'document' }),
                       })),
                     }]}
                   />
@@ -558,6 +787,45 @@ function WikiPageContent() {
         onClose={() => setOpenFile(false)}
         folderId={currentFolderId || undefined}
         onUploaded={() => fetchFolders(currentFolderId || undefined)}
+      />
+
+      {
+        contextMenu && (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            kind={contextMenu.item.kind}
+            onClose={() => setContextMenu(null)}
+            onOpen={contextMenu.item.kind === 'folder' ? () => handleAction('open', contextMenu.item) : undefined}
+            onDownload={(contextMenu.item.kind === 'file' || contextMenu.item.kind === 'document') ? () => handleAction('download', contextMenu.item) : undefined}
+            canDelete={canEditResource(contextMenu.item)}
+            canRename={canEditResource(contextMenu.item)}
+            onDelete={() => handleAction('delete', contextMenu.item)}
+            onRename={() => {
+              setItemToRename(contextMenu.item);
+              setRenameModalOpen(true);
+              setContextMenu(null);
+            }}
+          />
+        )
+      }
+
+      <DeleteConfirmationModal
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, items: [] })}
+        onConfirm={confirmDelete}
+        title={deleteModal.items[0]?.name || deleteModal.items[0]?.title || "Items"}
+        count={deleteModal.items.length}
+      />
+      <RenameModal
+        open={renameModalOpen}
+        onClose={() => {
+          setRenameModalOpen(false);
+          setItemToRename(null);
+        }}
+        onConfirm={handleRenameConfirm}
+        initialName={itemToRename?.name || itemToRename?.title || itemToRename?.file_name || ""}
+        title={`Rename ${itemToRename?.kind || 'Item'}`}
       />
     </div >
   );

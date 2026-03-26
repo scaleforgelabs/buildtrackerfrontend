@@ -159,6 +159,8 @@ export default function ActivityLogsPage() {
                       <div className="flex items-center gap-3">
                         <UserAvatar
                           user={{
+                            first_name: (log as any).first_name,
+                            last_name: (log as any).last_name,
                             name: log.user_name,
                             email: log.user_email,
                             avatar: (log as any).user_avatar || "" // No avatar in logs response yet, use initials

@@ -33,6 +33,7 @@ import api from '@/libs/api'
 import UserAvatar from '@/app/components/ui/UserAvatar'
 import UpdateTaskModal from '@/app/components/tasks/modals/UpdateTaskModal'
 import DeleteTaskModal from '@/app/components/tasks/modals/DeleteTaskModal'
+import ImagePreviewModal from '@/app/components/ui/ImagePreviewModal'
 import toast from 'react-hot-toast'
 import EmojiPicker from 'emoji-picker-react'
 import CommentEditor from '@/app/components/ui/CommentEditor'
@@ -82,7 +83,11 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
     const [commentText, setCommentText] = useState('')
     const [submittingComment, setSubmittingComment] = useState(false)
     const [commentAttachments, setCommentAttachments] = useState<FileWithProgress[]>([])
+    const [commentError, setCommentError] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Image Preview State
+    const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null)
 
     // Blockers State
     const [hasBlocker, setHasBlocker] = useState(false)
@@ -110,6 +115,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
 
     const handlePostComment = async () => {
         if ((!commentText.trim() && commentAttachments.length === 0) || !workspaceId) return
+        setCommentError(null)
         try {
             setSubmittingComment(true)
             const formData = new FormData()
@@ -125,9 +131,17 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
             setCommentAttachments([])
             fetchTaskDetails()
             toast.success("Comment posted!")
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to post comment:", error)
-            toast.error("Failed to post comment.")
+            const errorData = error?.response?.data
+            if (errorData && typeof errorData === 'object') {
+                const messages = Object.values(errorData).map((message) =>
+                    Array.isArray(message) ? message.join(', ') : String(message)
+                )
+                setCommentError(messages.join('. '))
+            } else {
+                setCommentError("Failed to post comment. Please try again.")
+            }
         } finally {
             setSubmittingComment(false)
         }
@@ -300,7 +314,8 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                         <div className="flex items-center gap-2 font-semibold text-gray-900">
                             <UserAvatar
                                 user={{
-                                    name: task.assigned_user?.first_name || "Unassigned",
+                                    first_name: task.assigned_user?.first_name,
+                                    last_name: task.assigned_user?.last_name,
                                     avatar: task.assigned_user?.avatar
                                 }}
                                 size={20}
@@ -327,7 +342,8 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                         <div className="flex items-center gap-2 font-semibold text-gray-900">
                             <UserAvatar
                                 user={{
-                                    name: task.created_by_user?.first_name || "System",
+                                    first_name: task.created_by_user?.first_name,
+                                    last_name: task.created_by_user?.last_name,
                                     avatar: task.created_by_user?.avatar
                                 }}
                                 size={20}
@@ -360,23 +376,35 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                             {attachmentsList.map((attachment: any, index: number) => {
                                 const ext = attachment.file_name?.split('.').pop()?.toUpperCase() || 'FILE'
                                 const isImage = ext.match(/^(JPEG|JPG|GIF|PNG|WEBP|SVG)$/i)
+                                const fileUrl = attachment.file_url || attachment.file
                                 return (
                                     <div key={attachment.id || index} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 hover:bg-gray-50 transition-colors">
                                         <div className="flex h-10 w-10 items-center justify-center shrink-0">
                                             {isImage ? (
-                                                <img src={attachment.file_url || attachment.file} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100" />
+                                                <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image' })} className="cursor-pointer">
+                                                    <img src={fileUrl} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100 hover:ring-2 hover:ring-primary/40 transition-all" />
+                                                </button>
                                             ) : (
                                                 <img width="40" height="40" src={getFileIcon(attachment.file_name || attachment.file)} alt="File" className="object-contain" />
                                             )}
                                         </div>
                                         <div className="flex-1 overflow-hidden">
-                                            <p className="truncate text-sm font-medium text-gray-900" title={attachment.file_name}>
+                                            <p className={`truncate text-sm font-medium text-gray-900 ${isImage ? 'cursor-pointer hover:text-primary' : ''}`}
+                                                title={attachment.file_name}
+                                                onClick={() => isImage && setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image' })}
+                                            >
                                                 {attachment.file_name || attachment.file?.split('/').pop() || 'Attachment'}
                                             </p>
                                             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-500">
                                                 <span>{attachment.size ? `${(attachment.size / 1024).toFixed(1)} KB` : 'Attached file'}</span>
                                                 <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                                                <button onClick={() => handleDownload(attachment.file_url || attachment.file, attachment.file_name || 'download')} className="font-medium text-primary hover:underline transition-all">Download</button>
+                                                {isImage && (
+                                                    <>
+                                                        <button onClick={() => setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image' })} className="font-medium text-primary hover:underline transition-all">Preview</button>
+                                                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                    </>
+                                                )}
+                                                <button onClick={() => handleDownload(fileUrl, attachment.file_name || 'download')} className="font-medium text-primary hover:underline transition-all">Download</button>
                                             </div>
                                         </div>
                                     </div>
@@ -419,7 +447,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                 <div className="relative mb-6">
                                     <CommentEditor
                                         value={commentText}
-                                        onChange={setCommentText}
+                                        onChange={(val: string) => { setCommentText(val); setCommentError(null); }}
                                         onAttachClick={() => fileInputRef.current?.click()}
                                         onSend={handlePostComment}
                                         isSubmitting={submittingComment}
@@ -428,6 +456,22 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                         attachments={commentAttachments}
                                         onRemoveAttachment={(i) => setCommentAttachments(prev => prev.filter((_, idx) => idx !== i))}
                                     />
+
+                                    {/* Inline Error Message */}
+                                    {commentError && (
+                                        <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                                            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-red-800">{commentError}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setCommentError(null)}
+                                                className="text-red-400 hover:text-red-600 transition-colors"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {/* Invisible File Input */}
                                     <input
@@ -466,13 +510,15 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                             <div key={comment.id} className="flex gap-4 pb-4 pt-2">
                                                 {/* Avatar */}
                                                 <div className="relative h-10 w-10 flex-shrink-0">
-                                                    <div className="h-full w-full overflow-hidden rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm uppercase">
-                                                        {comment.user_detail?.profile_picture ? (
-                                                            <img src={comment.user_detail.profile_picture} alt={`${comment.user_detail.first_name}`} className="h-full w-full object-cover" />
-                                                        ) : (
-                                                            <span>{comment.user_detail?.first_name?.[0] || 'U'}</span>
-                                                        )}
-                                                    </div>
+                                                    <UserAvatar
+                                                        user={{
+                                                            first_name: comment.user_detail?.first_name,
+                                                            last_name: comment.user_detail?.last_name,
+                                                            avatar: comment.user_detail?.profile_picture,
+                                                        }}
+                                                        size={40}
+                                                        className="h-10 w-10"
+                                                    />
                                                     {/* Online Indicator Dot */}
                                                     <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></div>
                                                 </div>
@@ -495,7 +541,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                                                 const isImage = fileUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i);
                                                                 if (isImage) {
                                                                     return (
-                                                                        <button type="button" onClick={() => handleDownload(fileUrl, att.file_name || 'image')} key={att.id} className="block w-full max-w-md overflow-hidden rounded-xl border-[4px] border-black hover:opacity-90 transition-opacity">
+                                                                        <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: att.file_name || 'Image' })} key={att.id} className="block w-full max-w-md overflow-hidden rounded-xl border-[4px] border-black hover:opacity-90 transition-opacity cursor-pointer">
                                                                             <img src={fileUrl} alt={att.file_name || 'Attachment'} className="h-auto w-full object-cover max-h-80" />
                                                                         </button>
                                                                     )
@@ -625,6 +671,14 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                 onClose={() => setIsDeleteOpen(false)}
                 onTaskDeleted={() => router.push(`/${workspaceId}/tasks`)}
                 task={{ id: taskData.id, name: taskData.task_name }}
+            />
+
+            <ImagePreviewModal
+                isOpen={!!previewImage}
+                imageUrl={previewImage?.url || ''}
+                fileName={previewImage?.name}
+                onClose={() => setPreviewImage(null)}
+                onDownload={previewImage ? () => handleDownload(previewImage.url, previewImage.name) : undefined}
             />
         </div>
     )

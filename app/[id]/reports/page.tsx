@@ -37,6 +37,8 @@ interface Member {
   phone: string;
   role: string;
   jobRole?: string;
+  firstName?: string;
+  lastName?: string;
   avatar?: StaticImageData | string;
   assigned: number;
   completed: number;
@@ -154,10 +156,10 @@ export default function ReportsPage() {
       color,
     };
   }) || [
-    { name: "Completed", value: 0, color: "#22C55E" },
-    { name: "In Progress", value: 0, color: "#3B82F6" },
-    { name: "Pending", value: 0, color: "#F97316" },
-  ];
+      { name: "Completed", value: 0, color: "#22C55E" },
+      { name: "In Progress", value: 0, color: "#3B82F6" },
+      { name: "Pending", value: 0, color: "#F97316" },
+    ];
 
   // Filter out zero values for cleaner chart
   const activeStatusData = statusChartData.filter((d) => d.value > 0);
@@ -174,6 +176,8 @@ export default function ReportsPage() {
       phone: m.member_phone || "-",
       role: m.member_role || "Member",
       jobRole: m.member_job_role || "Team Member",
+      firstName: m.member_first_name,
+      lastName: m.member_last_name,
       avatar: m.member_avatar, // Avatar from backend or handled by UserAvatar lookup or default
       completed: m.tasks_completed,
       assigned:
@@ -278,14 +282,14 @@ export default function ReportsPage() {
 
           {(currentWorkspace?.user_role === "Owner" ||
             currentWorkspace?.user_role === "Admin") && (
-            <button
-              onClick={handleExportReports}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:scale-105"
-            >
-              <Download className="h-4 w-4" />
-              Export Reports
-            </button>
-          )}
+              <button
+                onClick={handleExportReports}
+                className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:scale-105"
+              >
+                <Download className="h-4 w-4" />
+                Export Reports
+              </button>
+            )}
         </div>
       </div>
 
@@ -439,55 +443,44 @@ export default function ReportsPage() {
         </div>
 
         {/* Blocker Overview */}
-        <div className="lg:col-span-4 rounded-[2.5rem] bg-card p-8 border border-border">
-          <div className="flex items-center gap-3 mb-8">
+        <div className="lg:col-span-4 rounded-[2.5rem] bg-card p-8 border border-border flex flex-col">
+          <div className="flex items-center gap-3 mb-6">
             <Ban className="h-8 w-8 text-red-500" />
             <h3 className="text-2xl font-bold">Blocker Overview</h3>
           </div>
-          <div className="space-y-6 max-h-[300px] overflow-y-auto pr-2">
-            {performance?.bottlenecks && performance.bottlenecks.length > 0 ? (
-              performance.bottlenecks.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start justify-between group"
-                >
-                  <div className="flex gap-4">
-                    <div
-                      className={`w-1 self-stretch rounded-full ${item.severity === "high" ? "bg-red-500" : "bg-orange-400"}`}
-                    />
-                    <div>
+          <div className="relative flex-1">
+            <div className="space-y-5 max-h-[260px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+              {performance?.bottlenecks && performance.bottlenecks.length > 0 ? (
+                performance.bottlenecks.map((item, idx) => (
+                  <div key={idx} className="flex gap-4">
+                    <div className="w-1 self-stretch bg-red-500 rounded-full flex-shrink-0" />
+                    <div className="min-w-0">
                       <p className="text-base font-bold text-foreground">
-                        {item.area}
+                        #{item.ticket_number} - {item.area}
                       </p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <AlertCircle
-                          className={`h-4 w-4 ${item.severity === "high" ? "text-red-500" : "text-orange-400"}`}
-                        />
+                      <div className="flex items-start gap-1.5 mt-1">
+                        <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
                         <p className="text-sm text-muted-foreground font-medium">
                           {item.description}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="pt-1">
-                    <span
-                      className={`text-xs font-bold px-2 py-1 rounded-md ${item.severity === "high" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}
-                    >
-                      {item.severity.toUpperCase()}
-                    </span>
-                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-green-500 mb-2 opacity-50" />
+                  <p className="text-muted-foreground font-medium">
+                    No blockers detected.
+                  </p>
+                  <p className="text-xs text-muted-foreground/70">
+                    Great job keeping the workflow smooth!
+                  </p>
                 </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <CheckCircle2 className="h-12 w-12 text-green-500 mb-2 opacity-50" />
-                <p className="text-muted-foreground font-medium">
-                  No major bottlenecks detected.
-                </p>
-                <p className="text-xs text-muted-foreground/70">
-                  Great job keeping the workflow smooth!
-                </p>
-              </div>
+              )}
+            </div>
+            {performance?.bottlenecks && performance.bottlenecks.length > 3 && (
+              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
             )}
           </div>
         </div>
@@ -593,8 +586,8 @@ export default function ReportsPage() {
               <p className="text-base font-bold text-foreground">
                 {membersData.length > 0
                   ? membersData.reduce((prev, current) =>
-                      prev.completed > current.completed ? prev : current,
-                    ).name
+                    prev.completed > current.completed ? prev : current,
+                  ).name
                   : "N/A"}
               </p>
             </div>
@@ -605,8 +598,8 @@ export default function ReportsPage() {
               <p className="text-base font-bold text-foreground">
                 {membersData.length > 0
                   ? membersData.reduce((prev, current) =>
-                      prev.overdue < current.overdue ? prev : current,
-                    ).name
+                    prev.overdue < current.overdue ? prev : current,
+                  ).name
                   : "N/A"}
               </p>
             </div>
@@ -672,6 +665,8 @@ export default function ReportsPage() {
                         <UserAvatar
                           user={{
                             name: member.name,
+                            first_name: member.firstName,
+                            last_name: member.lastName,
                             email: member.email,
                             avatar: member.avatar,
                           }}

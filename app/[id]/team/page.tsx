@@ -211,7 +211,13 @@ export default function TeamManagementPage() {
               access={member.role}
               email={member.user.email}
               phone={member.phone || "N/A"}
-              user={member.user}
+              user={{
+                name: member.name || `${member.user.first_name} ${member.user.last_name}`.trim(),
+                first_name: member.user.first_name,
+                last_name: member.user.last_name,
+                email: member.user.email,
+                avatar: member.user.avatar,
+              }}
               accessVariant={member.role === "Owner" ? "owner" : "member"}
               status={member.user_status}
               onSaved={fetchMembers}

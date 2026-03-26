@@ -4,6 +4,7 @@ import { cn } from "@/libs/utils";
 import { filesService } from "@/libs/api/services";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import UserAvatar from "../ui/UserAvatar";
+import { getFileIcon as getUtilityIcon } from "@/libs/utils";
 
 type SortField = "name" | "size" | "owner" | "date";
 type SortOrder = "asc" | "desc";
@@ -17,6 +18,7 @@ type Item = {
   ownerAvatar?: string;
   date: string;
   itemCount?: number;
+  url?: string;
 };
 
 type FilesAndFoldersViewProps = {
@@ -135,7 +137,18 @@ export function FilesAndFoldersView({ items, onFolderOpen, onRefresh }: FilesAnd
                 {item.type === "folder" ? (
                   <Folder className="h-4 w-4 text-primary" />
                 ) : (
-                  <span className="text-lg">{getFileExtensionIcon(item.name)}</span>
+                  (() => {
+                    const ext = item.name.split('.').pop()?.toLowerCase() || '';
+                    const isImage = ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
+                    if (isImage && item.url) {
+                      return (
+                        <div className="h-8 w-8 shrink-0 rounded overflow-hidden border border-border/50">
+                          <img src={item.url} alt={item.name} className="h-full w-full object-cover" />
+                        </div>
+                      );
+                    }
+                    return <img src={getUtilityIcon(item.name)} alt="" className="h-8 w-8 object-contain" />;
+                  })()
                 )}
                 <span
                   className="font-medium text-foreground cursor-pointer"

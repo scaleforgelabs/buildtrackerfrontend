@@ -52,33 +52,17 @@ const priorityDots: Record<string, string> = {
   "low": "bg-green-500",
 };
 
-function ListViewContent() {
+function ListViewContent({ tasks, loading, onTasksChange }: {
+  tasks: TaskData[];
+  loading: boolean;
+  onTasksChange: (tasks: TaskData[]) => void;
+}) {
   const { currentWorkspace } = useWorkspace();
   const searchParams = useSearchParams();
   const router = useRouter();
   const searchQuery = searchParams.get('q') || '';
-  const [tasks, setTasks] = useState<TaskData[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-
-    const fetchTasks = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get(`/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`);
-        setTasks(response.data.results?.data || []);
-      } catch (error) {
-        console.error("Failed to fetch tasks:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-  }, [currentWorkspace?.id]);
 
   // Filter tasks based on search query
   const filteredTasks = searchQuery && searchQuery.length >= 2
@@ -123,11 +107,10 @@ function ListViewContent() {
     const oldTasks = [...tasks];
 
     // OPTIMISTIC UPDATE: Update UI instantly
-    setTasks(currentTasks =>
-      currentTasks.map(task =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
+    const updatedTasks = tasks.map(task =>
+      task.id === taskId ? { ...task, status: newStatus } : task
     );
+    onTasksChange(updatedTasks);
 
     try {
       await api.put(`/tasks/${currentWorkspace?.id}/tasks/${taskId}/status/`, {
@@ -137,7 +120,7 @@ function ListViewContent() {
     } catch (error) {
       console.error("Failed to update task status", error);
       // REVERT: Fallback to old state if API fails
-      setTasks(oldTasks);
+      onTasksChange(oldTasks);
     }
   };
 
@@ -240,7 +223,8 @@ function ListViewContent() {
                   <div className="flex items-center gap-2">
                     <UserAvatar
                       user={{
-                        name: task.assigned_user?.first_name,
+                        first_name: task.assigned_user?.first_name,
+                        last_name: task.assigned_user?.last_name,
                         avatar: task.assigned_user?.avatar
                       }}
                       size={28}
@@ -323,10 +307,14 @@ function ListViewContent() {
   );
 };
 
-const ListView = () => {
+const ListView = ({ tasks, loading, onTasksChange }: {
+  tasks: any[];
+  loading: boolean;
+  onTasksChange: (tasks: any[]) => void;
+}) => {
   return (
     <Suspense fallback={<div className="w-full p-6 text-center text-muted-foreground">Loading tasks...</div>}>
-      <ListViewContent />
+      <ListViewContent tasks={tasks} loading={loading} onTasksChange={onTasksChange} />
     </Suspense>
   );
 };

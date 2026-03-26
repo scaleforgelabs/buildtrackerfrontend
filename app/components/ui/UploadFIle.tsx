@@ -1,6 +1,7 @@
 import { Upload, X, CheckCircle2, Loader2 } from 'lucide-react'
 import React, { useRef, useState, useEffect } from 'react'
 import { getFileIcon } from '@/libs/utils'
+import ImagePreviewModal from './ImagePreviewModal'
 
 interface UploadFileProps {
     onFilesChange?: (files: File[]) => void
@@ -10,19 +11,24 @@ interface FileWithProgress extends File {
     progress?: number
 }
 
-const ImagePreview = ({ file }: { file: File }) => {
+const ImagePreview = ({ file, onClick }: { file: File; onClick?: () => void }) => {
     const [previewUrl, setPreviewUrl] = useState<string>('')
     useEffect(() => {
         const url = URL.createObjectURL(file)
         setPreviewUrl(url)
         return () => URL.revokeObjectURL(url)
     }, [file])
-    return previewUrl ? <img src={previewUrl} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100" /> : null
+    return previewUrl ? (
+        <button type="button" onClick={onClick} className="cursor-pointer">
+            <img src={previewUrl} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100 hover:ring-2 hover:ring-primary/40 transition-all" />
+        </button>
+    ) : null
 }
 
 const UploadFile = ({ onFilesChange }: UploadFileProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [uploadedFiles, setUploadedFiles] = useState<FileWithProgress[]>([])
+    const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null)
 
     const handleClick = () => {
         fileInputRef.current?.click()
@@ -70,6 +76,18 @@ const UploadFile = ({ onFilesChange }: UploadFileProps) => {
         onFilesChange?.(updated)
     }
 
+    const openImagePreview = (file: File) => {
+        const url = URL.createObjectURL(file)
+        setPreviewFile({ url, name: file.name })
+    }
+
+    const closeImagePreview = () => {
+        if (previewFile) {
+            URL.revokeObjectURL(previewFile.url)
+        }
+        setPreviewFile(null)
+    }
+
     return (
         <>
             <div className="flex flex-col gap-2">
@@ -107,13 +125,17 @@ const UploadFile = ({ onFilesChange }: UploadFileProps) => {
                                 <div className="flex items-center gap-3 flex-1">
                                     <div className="flex h-10 w-10 items-center justify-center shrink-0">
                                         {isImage ? (
-                                            <ImagePreview file={file} />
+                                            <ImagePreview file={file} onClick={() => openImagePreview(file)} />
                                         ) : (
                                             <img width="40" height="40" src={getFileIcon(file.name)} alt="File" className="object-contain" />
                                         )}
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-sm font-medium text-foreground">{file.name}</p>
+                                        <p className={`text-sm font-medium text-foreground ${isImage ? 'cursor-pointer hover:text-primary' : ''}`}
+                                            onClick={() => isImage && openImagePreview(file)}
+                                        >
+                                            {file.name}
+                                        </p>
                                         <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB - {Math.round(file.progress || 0)}% Uploaded</p>
                                     </div>
                                 </div>
@@ -136,8 +158,16 @@ const UploadFile = ({ onFilesChange }: UploadFileProps) => {
                     })}
                 </div>
             )}
+
+            <ImagePreviewModal
+                isOpen={!!previewFile}
+                imageUrl={previewFile?.url || ''}
+                fileName={previewFile?.name}
+                onClose={closeImagePreview}
+            />
         </>
     )
 }
 
 export default UploadFile
+

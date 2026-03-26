@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import TiptapEditor from "@/app/components/ui/tiptap-editor"
 import UploadFile from '../../ui/UploadFIle'
+import ImagePreviewModal from '../../ui/ImagePreviewModal'
 import { useWorkspace } from '@/libs/hooks/useWorkspace'
 import { getFileIcon } from '@/libs/utils'
 import api from '@/libs/api'
@@ -45,6 +46,7 @@ const UpdateTaskModal = ({ isOpen, onClose, onTaskUpdated, task }: UpdateTaskMod
     const [members, setMembers] = useState<Member[]>([])
     const [loading, setLoading] = useState(false)
     const [submitting, setSubmitting] = useState(false)
+    const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null)
 
     const [formData, setFormData] = useState(() => ({
         task_name: task?.task_name || '',
@@ -264,19 +266,28 @@ const UpdateTaskModal = ({ isOpen, onClose, onTaskUpdated, task }: UpdateTaskMod
                                     {task.attachments.map((att: any, idx: number) => {
                                         const ext = att.file_name?.split('.').pop()?.toUpperCase() || 'FILE'
                                         const isImage = ext.match(/^(JPEG|JPG|GIF|PNG|WEBP|SVG)$/i)
+                                        const fileUrl = att.file_url || att.file
                                         return (
                                             <li key={att.id || idx} className="flex items-center justify-between rounded-lg border bg-card p-3 text-sm hover:bg-muted/50 transition-colors">
                                                 <div className="flex items-center gap-3 overflow-hidden">
                                                     <div className="flex h-10 w-10 items-center justify-center shrink-0">
                                                         {isImage ? (
-                                                            <img src={att.file_url || att.file} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100" />
+                                                            <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: att.file_name || 'Image' })} className="cursor-pointer">
+                                                                <img src={fileUrl} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100 hover:ring-2 hover:ring-primary/40 transition-all" />
+                                                            </button>
                                                         ) : (
                                                             <img width="40" height="40" src={getFileIcon(att.file_name || att.file)} alt="File" className="object-contain" />
                                                         )}
                                                     </div>
-                                                    <a href={att.file_url || att.file} target="_blank" rel="noopener noreferrer" className="truncate font-medium text-foreground hover:text-primary hover:underline">
-                                                        {att.file_name || 'Attachment'}
-                                                    </a>
+                                                    {isImage ? (
+                                                        <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: att.file_name || 'Image' })} className="truncate font-medium text-foreground hover:text-primary hover:underline text-left">
+                                                            {att.file_name || 'Attachment'}
+                                                        </button>
+                                                    ) : (
+                                                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="truncate font-medium text-foreground hover:text-primary hover:underline">
+                                                            {att.file_name || 'Attachment'}
+                                                        </a>
+                                                    )}
                                                 </div>
                                             </li>
                                         )
@@ -307,6 +318,13 @@ const UpdateTaskModal = ({ isOpen, onClose, onTaskUpdated, task }: UpdateTaskMod
                     </button>
                 </div>
             </form>
+
+            <ImagePreviewModal
+                isOpen={!!previewImage}
+                imageUrl={previewImage?.url || ''}
+                fileName={previewImage?.name}
+                onClose={() => setPreviewImage(null)}
+            />
         </div>
     )
 }

@@ -6,7 +6,7 @@ import UserAvatar from "./UserAvatar";
 interface AvatarStackProps {
     // Deprecated: use users instead
     avatars?: string[];
-    users?: { name?: string; avatar?: string }[];
+    users?: any[];
     size?: "sm" | "md";
     max?: number;
     className?: string;
@@ -19,7 +19,7 @@ export function AvatarStack({
     max = 5,
     className,
 }: {
-    users?: { name?: string; avatar?: string }[];
+    users?: any[];
     avatars?: string[];
     size?: "sm" | "md";
     max?: number;
