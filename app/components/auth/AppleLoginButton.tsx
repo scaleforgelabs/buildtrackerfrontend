@@ -27,11 +27,14 @@ interface AppleLoginButtonProps {
 const APPLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || "com.buildtrackerapp.web";
 
+import { useAuth } from "@/libs/hooks/useAuth";
+
 export default function AppleLoginButton({
   label = "Continue with Apple",
   onError,
 }: AppleLoginButtonProps) {
   const router = useRouter();
+  const { appleLogin } = useAuth();
   const searchParams = useSearchParams();
   const inviteToken =
     searchParams.get("invite_token") || searchParams.get("token") || "";
@@ -102,16 +105,13 @@ export default function AppleLoginButton({
       const data = await window.AppleID.auth.signIn();
       const id_token = data.authorization.id_token;
 
-      const result = await authService.appleLogin(id_token);
-      const { access, refresh } = result.data;
-
-      localStorage.setItem("access_token", access);
-      localStorage.setItem("refresh_token", refresh);
+      const result = await appleLogin(id_token);
+      const { user } = result;
 
       // Handle pending invitation if any
       if (inviteToken) {
         try {
-          const loggedInEmail = result.data.email;
+          const loggedInEmail = user.email;
 
           const inviteRes = await authService.getInvitationDetails(inviteToken);
           const invitedEmail = inviteRes.data.invitation.email;
@@ -131,9 +131,6 @@ export default function AppleLoginButton({
             toast.warning(
               `Invitation skipped. It was sent to ${invitedEmail}, but you logged in as ${loggedInEmail}.`,
             );
-            console.warn(
-              "Apple login email mismatch with invitation, skipping auto-accept",
-            );
           }
         } catch (inviteErr) {
           console.error(
@@ -143,11 +140,16 @@ export default function AppleLoginButton({
         }
       }
 
-      router.push("/home");
+      // Redirect based on workspace persistence
+      if (user.last_active_workspace) {
+        router.push(`/${user.last_active_workspace}/home`);
+      } else {
+        router.push("/home");
+      }
     } catch (error: any) {
       console.error("Apple login error:", error);
       if (error.error !== "user_cancelled") {
-        onError?.(error.response?.data?.error || "Apple login failed");
+        onError?.(error instanceof Error ? error.message : "Apple login failed");
       }
     } finally {
       setLoading(false);

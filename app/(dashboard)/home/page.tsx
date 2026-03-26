@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { workspacesService } from "@/libs/api/services";
 import CreateWorkspaceModal from "@/app/components/modals/CreateWorkspaceModal";
 
+import { useAuth } from "@/libs/hooks/useAuth";
+
 export default function DashboardHomeRedirect() {
   const router = useRouter();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -17,7 +20,9 @@ export default function DashboardHomeRedirect() {
         const workspaces = response.data.results?.data || [];
 
         if (workspaces.length > 0) {
-          router.replace(`/${workspaces[0].id}/home`);
+          const lastWorkspaceId = user?.last_active_workspace || localStorage.getItem('lastWorkspaceId');
+          const workspaceToRedirect = workspaces.find((ws: any) => ws.id === lastWorkspaceId) || workspaces[0];
+          router.replace(`/${workspaceToRedirect.id}/home`);
         } else {
           setLoading(false);
           setShowCreateModal(true);
@@ -29,7 +34,7 @@ export default function DashboardHomeRedirect() {
     };
 
     redirectToWorkspace();
-  }, [router]);
+  }, [router, user]);
 
   const handleWorkspaceCreated = async () => {
     setShowCreateModal(false);

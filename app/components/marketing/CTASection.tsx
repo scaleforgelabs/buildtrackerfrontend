@@ -1,14 +1,22 @@
+"use client";
+
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ChartColumn, PlaySquare } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Images } from "@/public";
+import { useAuth } from "@/libs/hooks/useAuth";
 
 export function CTASection() {
+    const { isAuthenticated } = useAuth();
+    const signupRedirect = isAuthenticated ? "/home" : "/signup";
+    const getStartedText = isAuthenticated ? "Go to Dashboard" : "Get Started";
+
     return (
         <section className="py-16 md:py-24 px-4 md:px-8 overflow-hidden">
             <div className="max-w-7xl mx-auto mb-12 md:mb-16">
-                <div className="bg-blue-50 dark:bg-muted/20 rounded-2xl md:rounded-[3.5rem] flex flex-col md:flex-row items-center gap-6 md:gap-12 lg:gap-24 relative overflow-hidden">
+                <div className="bg-blue-50 dark:bg-muted/20 rounded-2xl md:rounded-[3.5rem] flex flex-col md:row items-center gap-6 md:gap-12 lg:gap-24 relative overflow-hidden">
                     <div className="w-full md:w-2/5 relative overflow-hidden hidden md:block h-64 md:h-auto">
                         <Image
                             src={Images.tiltRight}
@@ -24,9 +32,11 @@ export function CTASection() {
                         <p className="text-base md:text-lg text-muted-foreground leading-relaxed font-medium">
                             Stop fighting your software. Start tracking your progress.
                         </p>
-                        <Button className="rounded-full px-12 h-14 bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 font-black active:scale-95 transition-all hover:scale-105">
-                            Get Started
-                        </Button>
+                        <Link href={signupRedirect}>
+                            <Button className="rounded-full px-12 h-14 bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 font-black active:scale-95 transition-all hover:scale-105">
+                                {getStartedText}
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -44,12 +54,14 @@ export function CTASection() {
                             BuildTracker optimize your productivity & workflow.
                         </p>
                     </div>
-                    <Button
-                        variant="outline"
-                        className="rounded-full px-12 h-14 bg-orange-500 border-white text-white hover:bg-white hover:text-orange-500 font-black transition-all"
-                    >
-                        Get Started
-                    </Button>
+                    <Link href={signupRedirect}>
+                        <Button
+                            variant="outline"
+                            className="rounded-full px-12 h-14 bg-orange-500 border-white text-white hover:bg-white hover:text-orange-500 font-black transition-all"
+                        >
+                            {getStartedText}
+                        </Button>
+                    </Link>
                     <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
                 </div>
                 <div className="bg-purple-600 rounded-2xl md:rounded-[3rem] p-8 md:p-12 lg:p-20 text-white space-y-6 md:space-y-8 group overflow-hidden relative">
