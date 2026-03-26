@@ -16,12 +16,15 @@ interface UserAvatarProps {
 export default function UserAvatar({ user, className = "", size = 40 }: UserAvatarProps) {
     // 1. Try to get the image
     let imageSrc = user?.avatar;
-    if (typeof imageSrc === 'string' && imageSrc.startsWith('/media/')) {
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://api.buildtrackerapp.com';
-        imageSrc = `${baseUrl}${imageSrc}`;
-    } else if (typeof imageSrc === 'string' && imageSrc.startsWith('http')) {
-        // If it's already an absolute URL (like from Social Auth or our absolute URI builder), use it directly.
-        imageSrc = imageSrc;
+    if (typeof imageSrc === 'string') {
+        if (imageSrc.startsWith('/media/')) {
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://api.buildtrackerapp.com';
+            imageSrc = `${baseUrl}${imageSrc}`;
+        }
+        // If it starts with http, blob:, or data:, it's already an absolute URL
+        else if (imageSrc.startsWith('http') || imageSrc.startsWith('blob:') || imageSrc.startsWith('data:')) {
+            imageSrc = imageSrc;
+        }
     }
 
     // 2. Logic for initials

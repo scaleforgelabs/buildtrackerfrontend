@@ -23,6 +23,7 @@ interface AuthContextType {
   googleLogin: (idToken: string) => Promise<any>;
   appleLogin: (idToken: string) => Promise<any>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -142,6 +143,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const response = await authService.getProfile();
+      setUser(response.data.user);
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -150,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     googleLogin,
     appleLogin,
     logout,
+    refreshUser,
     isAuthenticated: !!user,
   };
 
