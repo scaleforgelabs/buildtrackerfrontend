@@ -63,7 +63,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     setMounted(true);
@@ -95,18 +95,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           }
         }
       } else {
-        // No workspace ID in URL, try to restore from localStorage
-        const lastId = localStorage.getItem('lastWorkspaceId');
-        if (lastId) {
-          const workspace = fetchedWorkspaces.find((ws: Workspace) => ws.id === lastId);
+        // No workspace ID in URL, prioritize backend last_active_workspace
+        const lastWorkspaceId = user?.last_active_workspace || localStorage.getItem('lastWorkspaceId');
+
+        if (lastWorkspaceId) {
+          const workspace = fetchedWorkspaces.find((ws: Workspace) => ws.id === lastWorkspaceId);
           if (workspace) {
             setCurrentWorkspace(workspace);
           }
         }
 
         if (fetchedWorkspaces.length > 0 && (pathname === '/dashboard' || pathname === '/')) {
-          const firstWorkspace = fetchedWorkspaces[0];
-          router.replace(`/${firstWorkspace.id}/home`);
+          const lastId = user?.last_active_workspace || localStorage.getItem('lastWorkspaceId');
+          const workspaceToRedirect = fetchedWorkspaces.find((ws: Workspace) => ws.id === lastId) || fetchedWorkspaces[0];
+          router.replace(`/${workspaceToRedirect.id}/home`);
         }
       }
     } catch (err: any) {
@@ -140,14 +142,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [mounted, isAuthenticated]);
 
-  // Fetch settings when currentWorkspace changes
+  // Fetch settings and sync last_active_workspace when currentWorkspace changes
   useEffect(() => {
     let isMounted = true;
-    const fetchSettings = async () => {
+    const syncWorkspaceAndFetchSettings = async () => {
       if (!currentWorkspace) {
         setWorkspaceSettings(null);
         return;
       }
+
+      // Sync with backend if different
+      if (isAuthenticated && user && user.last_active_workspace !== currentWorkspace.id) {
+        try {
+          // Import authService dynamically to avoid circular dependency if any, 
+          // although hooks are usually fine.
+          const { authService } = await import('@/libs/api/auth');
+          await authService.updateProfile({ last_active_workspace: currentWorkspace.id });
+        } catch (err) {
+          console.error('Failed to sync last workspace:', err);
+        }
+      }
+
       try {
         const response = await workspacesService.getSettings(currentWorkspace.id);
         if (isMounted) {
@@ -158,9 +173,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    fetchSettings();
+    syncWorkspaceAndFetchSettings();
     return () => { isMounted = false; };
-  }, [currentWorkspace]);
+  }, [currentWorkspace, isAuthenticated]);
 
   const switchWorkspace = (workspace: Workspace) => {
     if (!mounted) return;

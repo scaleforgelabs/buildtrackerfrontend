@@ -54,6 +54,7 @@ export const authService = {
     phone?: string;
     bio?: string;
     avatar?: File;
+    last_active_workspace?: string;
   }) => {
     // If we have an avatar file, we must send as FormData
     if (data.avatar instanceof File || Object.keys(data).length > 0) {

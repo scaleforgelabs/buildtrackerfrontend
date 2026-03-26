@@ -28,8 +28,11 @@ interface GoogleLoginButtonProps {
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
+import { useAuth } from '@/libs/hooks/useAuth';
+
 export default function GoogleLoginButton({ label = 'Login with Google', onError }: GoogleLoginButtonProps) {
     const router = useRouter();
+    const { googleLogin } = useAuth();
     const hiddenBtnRef = useRef<HTMLDivElement>(null);
     const searchParams = useSearchParams()
     const inviteToken = searchParams.get('invite_token') || searchParams.get('token') || ''
@@ -39,16 +42,13 @@ export default function GoogleLoginButton({ label = 'Login with Google', onError
     const handleCredentialResponse = useCallback(async (response: any) => {
         setLoading(true);
         try {
-            const result = await authService.googleLogin(response.credential);
-            const { access, refresh } = result.data;
-
-            localStorage.setItem('access_token', access);
-            localStorage.setItem('refresh_token', refresh);
+            const result = await googleLogin(response.credential);
+            const { user } = result;
 
             // Handle pending invitation if any
             if (inviteToken) {
                 try {
-                    const loggedInEmail = result.data.email;
+                    const loggedInEmail = user.email;
 
                     const inviteRes = await authService.getInvitationDetails(inviteToken);
                     const invitedEmail = inviteRes.data.invitation.email;
@@ -63,21 +63,25 @@ export default function GoogleLoginButton({ label = 'Login with Google', onError
                         }
                     } else {
                         toast.warning(`Invitation skipped. It was sent to ${invitedEmail}, but you logged in as ${loggedInEmail}.`);
-                        console.warn('Google login email mismatch with invitation, skipping auto-accept');
                     }
                 } catch (inviteErr) {
                     console.error('Failed to auto-accept invitation after Google login:', inviteErr);
                 }
             }
 
-            router.push('/home');
+            // Redirect based on workspace persistence
+            if (user.last_active_workspace) {
+                router.push(`/${user.last_active_workspace}/home`);
+            } else {
+                router.push('/home');
+            }
         } catch (error: any) {
             console.error('Google login error:', error);
-            onError?.(error.response?.data?.error || 'Google login failed');
+            onError?.(error instanceof Error ? error.message : 'Google login failed');
         } finally {
             setLoading(false);
         }
-    }, [router, onError]);
+    }, [googleLogin, router, inviteToken, onError]);
 
     useEffect(() => {
         if (!GOOGLE_CLIENT_ID) return;

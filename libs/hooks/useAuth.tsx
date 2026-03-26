@@ -12,6 +12,7 @@ interface User {
   phone?: string;
   bio?: string;
   avatar?: string;
+  last_active_workspace?: string;
 }
 
 interface AuthContextType {
@@ -19,6 +20,8 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  googleLogin: (idToken: string) => Promise<any>;
+  appleLogin: (idToken: string) => Promise<any>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -86,6 +89,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const googleLogin = async (idToken: string) => {
+    try {
+      const response = await authService.googleLogin(idToken);
+      const { access, refresh, user } = response.data;
+
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      setUser(user);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Google login failed');
+    }
+  };
+
+  const appleLogin = async (idToken: string) => {
+    try {
+      const response = await authService.appleLogin(idToken);
+      const { access, refresh, user } = response.data;
+
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      setUser(user);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || 'Apple login failed');
+    }
+  };
+
   const register = async (data: RegisterData) => {
     try {
       await authService.register(data);
@@ -116,6 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     login,
     register,
+    googleLogin,
+    appleLogin,
     logout,
     isAuthenticated: !!user,
   };
