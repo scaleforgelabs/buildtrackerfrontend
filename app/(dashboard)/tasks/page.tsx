@@ -13,17 +13,42 @@ import KanbanView from '@/app/components/tasks/views/KanbanView'
 import ListView from '@/app/components/tasks/views/ListView'
 import BoardView from '@/app/components/tasks/views/BoardView'
 import TimelineView from '@/app/components/tasks/views/TimelineView'
-
 import CreateTaskModal from '@/app/components/tasks/modals/CreateTaskModal'
+import { useWorkspace } from "@/libs/hooks/useWorkspace"
+import { tasksService } from "@/libs/api/services"
+import api from "@/libs/api"
+import { useCallback } from 'react'
 
 const TasksPage = () => {
   const [currentView, setCurrentView] = useState('list')
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [tasks, setTasks] = useState<any[]>([])
+  const [tasksLoading, setTasksLoading] = useState(true)
+  const { currentWorkspace } = useWorkspace()
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      setTasksLoading(true)
+      // Since this is the global dashboard, we fetch all tasks
+      const response = await tasksService.getTasks()
+      setTasks(response.data.results?.data || response.data || [])
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error)
+    } finally {
+      setTasksLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (mounted) {
+      fetchTasks()
+    }
+  }, [mounted, fetchTasks])
 
   const tabs = [
     { id: 'kanban', label: 'Kanban', icon: Layout },
@@ -36,11 +61,11 @@ const TasksPage = () => {
     if (!mounted) return <div>Loading...</div>
 
     switch (currentView) {
-      case 'kanban': return <KanbanView />
-      case 'list': return <ListView />
-      case 'board': return <BoardView />
-      case 'timeline': return <TimelineView />
-      default: return <ListView />
+      case 'kanban': return <KanbanView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} onRefresh={fetchTasks} />
+      case 'list': return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />
+      case 'board': return <BoardView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />
+      case 'timeline': return <TimelineView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />
+      default: return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />
     }
   }
 
@@ -108,6 +133,7 @@ const TasksPage = () => {
       <CreateTaskModal
         isOpen={isCreateTaskOpen}
         onClose={() => setIsCreateTaskOpen(false)}
+        onTaskCreated={() => fetchTasks()}
       />
     </div>
   )

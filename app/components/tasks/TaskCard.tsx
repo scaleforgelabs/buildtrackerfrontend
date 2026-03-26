@@ -76,7 +76,8 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
           <div className="flex items-center gap-2">
             <UserAvatar
               user={{
-                name: task.assigned_user?.first_name || "Unassigned",
+                first_name: task.assigned_user?.first_name,
+                last_name: task.assigned_user?.last_name,
                 avatar: task.assigned_user?.avatar,
               }}
               size={28}

@@ -11,6 +11,7 @@ import { useAuth } from "@/libs/hooks/useAuth";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import { authService } from "@/libs/api/auth";
 import { toast } from "sonner";
+import UserAvatar from "../ui/UserAvatar";
 
 export const AccountTab = () => {
     const { user, logout } = useAuth();
@@ -102,8 +103,6 @@ export const AccountTab = () => {
         }
     };
 
-    // Calculate initials for fallback avatar
-    const initials = (firstName?.charAt(0) || "") + (lastName?.charAt(0) || "");
 
     return (
         <div className="space-y-12">
@@ -115,19 +114,21 @@ export const AccountTab = () => {
                 </div>
 
                 <div className="flex items-center space-x-6">
-                    <div className="relative group">
-                        <div className="w-24 h-24 rounded-full bg-linear-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden ring-4 ring-background">
-                            {avatarPreview ? (
-                                <img src={avatarPreview.startsWith('http') ? avatarPreview : `http://127.0.0.1:8000${avatarPreview}`} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                                <span>{initials || "U"}</span>
-                            )}
-                            <div
-                                className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                <Camera className="w-8 h-8 text-white" />
-                            </div>
+                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                        <UserAvatar
+                            user={{
+                                first_name: firstName,
+                                last_name: lastName,
+                                avatar: avatarPreview || undefined,
+                                name: `${firstName} ${lastName}`.trim()
+                            }}
+                            size={96}
+                            className="ring-4 ring-background shadow-lg"
+                        />
+                        <div
+                            className="absolute inset-0 bg-black/10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <Camera className="w-8 h-8 text-white" />
                         </div>
                         <input
                             type="file"
@@ -143,6 +144,7 @@ export const AccountTab = () => {
                             <Edit className="w-4 h-4 text-primary" />
                         </button>
                     </div>
+
                     <div className="space-y-1">
                         <h4 className="font-bold text-foreground">Profile Picture</h4>
                         <p className="text-xs text-muted-foreground">PNG, JPEG under 15MB</p>
@@ -215,10 +217,10 @@ export const AccountTab = () => {
                         </div>
                     ))}
                 </div>
-            </section>
+            </section >
 
             {/* Password Section */}
-            <section className="space-y-6 pt-6 border-t border-border">
+            < section className="space-y-6 pt-6 border-t border-border" >
                 <div>
                     <h3 className="text-xl font-bold text-foreground">Password</h3>
                     <p className="text-sm text-muted-foreground mt-1">Modify your current password.</p>
@@ -275,10 +277,10 @@ export const AccountTab = () => {
                         {isSavingPassword ? "Saving..." : "Save"}
                     </Button>
                 </div>
-            </section>
+            </section >
 
             {/* Account Security Section */}
-            <section className="space-y-6 pt-6 border-t border-border">
+            < section className="space-y-6 pt-6 border-t border-border" >
                 <div>
                     <h3 className="text-xl font-bold text-foreground">Account Security</h3>
                     <p className="text-sm text-muted-foreground mt-1">Manage your account security.</p>
@@ -294,7 +296,7 @@ export const AccountTab = () => {
                         <span className="font-semibold">Delete Account</span>
                     </Button>
                 </div>
-            </section>
-        </div>
+            </section >
+        </div >
     );
 };

@@ -81,6 +81,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
     const [commentText, setCommentText] = useState('')
     const [submittingComment, setSubmittingComment] = useState(false)
     const [commentAttachments, setCommentAttachments] = useState<FileWithProgress[]>([])
+    const [commentError, setCommentError] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Blockers State
@@ -113,6 +114,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     const handlePostComment = async () => {
         if ((!commentText.trim() && commentAttachments.length === 0) || !workspaceId) return
+        setCommentError(null)
         try {
             setSubmittingComment(true)
             const formData = new FormData()
@@ -128,9 +130,17 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
             setCommentAttachments([])
             fetchTaskDetails()
             toast.success("Comment posted!")
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to post comment:", error)
-            toast.error("Failed to post comment.")
+            const errorData = error?.response?.data
+            if (errorData && typeof errorData === 'object') {
+                const messages = Object.values(errorData).map((message) =>
+                    Array.isArray(message) ? message.join(', ') : String(message)
+                )
+                setCommentError(messages.join('. '))
+            } else {
+                setCommentError("Failed to post comment. Please try again.")
+            }
         } finally {
             setSubmittingComment(false)
         }
@@ -407,7 +417,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
                                 <div className="relative mb-6">
                                     <CommentEditor
                                         value={commentText}
-                                        onChange={setCommentText}
+                                        onChange={(val: string) => { setCommentText(val); setCommentError(null); }}
                                         onAttachClick={() => fileInputRef.current?.click()}
                                         onSend={handlePostComment}
                                         isSubmitting={submittingComment}
@@ -416,6 +426,22 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
                                         attachments={commentAttachments}
                                         onRemoveAttachment={(i) => setCommentAttachments(prev => prev.filter((_, idx) => idx !== i))}
                                     />
+
+                                    {/* Inline Error Message */}
+                                    {commentError && (
+                                        <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                                            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-red-800">{commentError}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setCommentError(null)}
+                                                className="text-red-400 hover:text-red-600 transition-colors"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {/* Invisible File Input */}
                                     <input

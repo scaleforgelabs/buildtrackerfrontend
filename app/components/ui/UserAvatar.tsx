@@ -28,16 +28,29 @@ export default function UserAvatar({ user, className = "", size = 40 }: UserAvat
     const getInitials = () => {
         if (!user) return "U";
 
-        if (user.first_name && user.last_name) {
-            return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+        // Try to construct a full name from available fields
+        const firstName = user.first_name || "";
+        const lastName = user.last_name || "";
+        const fullName = user.name || (firstName || lastName ? `${firstName} ${lastName}`.trim() : "");
+
+        const nameToUse = fullName || user.email || "User";
+        const parts = nameToUse.split(' ').filter(p => !!p);
+
+        // 1. Check for CamelCase in the FIRST word (e.g., "AbdulHameed" -> "AH")
+        // We do this first because it's a specific brand requirement
+        const firstWord = parts[0] || "";
+        const capitals = firstWord.match(/[A-Z]/g);
+        if (capitals && capitals.length >= 2) {
+            return (capitals[0] + capitals[1]).toUpperCase();
         }
 
-        const name = user.name || user.email || "User";
-        const parts = name.split(' ');
+        // 2. If we have at least two parts (regular name like "John Smith" -> "JS")
         if (parts.length >= 2) {
             return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
         }
-        return name.slice(0, 2).toUpperCase();
+
+        // 3. Fallback to start of the name
+        return nameToUse.slice(0, 2).toUpperCase();
     };
 
     if (imageSrc) {

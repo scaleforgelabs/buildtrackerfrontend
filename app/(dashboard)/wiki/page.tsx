@@ -211,7 +211,6 @@ export default function ProjectWikiPage() {
                     folderId={folder.id.toString()}
                     title={folder.name}
                     items={folder.items}
-                    avatars={["/images/avatar.jpg", "/images/avatar.jpg"]}
                     view={gridView ? "grid" : "list"}
                   />
                 ))}
@@ -305,6 +304,11 @@ export default function ProjectWikiPage() {
                       fileType="DOC"
                       user={doc.author}
                       view={gridView ? "grid" : "list"}
+                      onOpen={() => {
+                        // Global wiki doesn't have a specific workspace ID context here but we can redirect to the workspace wiki
+                        // For now we'll just log
+                        console.log('Opening document:', doc.id);
+                      }}
                     />
                   ))
                 )}

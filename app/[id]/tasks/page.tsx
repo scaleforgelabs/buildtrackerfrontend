@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Layout,
   List,
@@ -18,19 +18,42 @@ import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import Papa from "papaparse";
 import { tasksService } from "@/libs/api/services";
 import { useRef } from "react";
+import api from "@/libs/api";
 
 const TasksPage = () => {
   const [currentView, setCurrentView] = useState("list");
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentWorkspace } = useWorkspace();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const fetchTasks = useCallback(async () => {
+    if (!currentWorkspace?.id) return;
+    try {
+      setTasksLoading(true);
+      const response = await api.get(
+        `/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`
+      );
+      setTasks(response.data.results?.data || []);
+    } catch (error) {
+      console.error("Failed to fetch tasks:", error);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [currentWorkspace?.id]);
+
+  useEffect(() => {
+    if (mounted && currentWorkspace?.id) {
+      fetchTasks();
+    }
+  }, [mounted, currentWorkspace?.id, fetchTasks]);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -52,8 +75,6 @@ const TasksPage = () => {
           const rows = results.data as any[];
 
           for (const row of rows) {
-            // Map CSV columns to generic task model.
-            // Required backend fields: title, description, display_id (auto generated usually), priority, status
             const taskPayload = {
               workspace: currentWorkspace.id,
               title:
@@ -70,9 +91,8 @@ const TasksPage = () => {
             await tasksService.createTask(taskPayload);
           }
 
-          // Reset and refresh
           if (fileInputRef.current) fileInputRef.current.value = "";
-          window.location.reload();
+          fetchTasks();
         } catch (error) {
           console.error("Failed to import tasks:", error);
           alert("Failed to import some tasks. Please check the CSV format.");
@@ -100,15 +120,15 @@ const TasksPage = () => {
 
     switch (currentView) {
       case "kanban":
-        return <KanbanView key={refreshKey} />;
+        return <KanbanView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} onRefresh={fetchTasks} />;
       case "list":
-        return <ListView key={refreshKey} />;
+        return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />;
       case "board":
-        return <BoardView key={refreshKey} />;
+        return <BoardView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />;
       case "timeline":
-        return <TimelineView key={refreshKey} />;
+        return <TimelineView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />;
       default:
-        return <ListView key={refreshKey} />;
+        return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />;
     }
   };
 
@@ -138,24 +158,24 @@ const TasksPage = () => {
         <div className="flex flex-wrap items-center gap-3">
           {(currentWorkspace?.user_role === "Owner" ||
             currentWorkspace?.user_role === "Admin") && (
-            <>
-              <input
-                type="file"
-                accept=".csv"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-              />
-              <button
-                onClick={handleImportClick}
-                disabled={isImporting}
-                className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-medium text-primary hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-              >
-                <Upload className="h-4 w-4" />
-                {isImporting ? "Importing..." : "Import CSV"}
-              </button>
-            </>
-          )}
+              <>
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                />
+                <button
+                  onClick={handleImportClick}
+                  disabled={isImporting}
+                  className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-medium text-primary hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+                >
+                  <Upload className="h-4 w-4" />
+                  {isImporting ? "Importing..." : "Import CSV"}
+                </button>
+              </>
+            )}
           <button
             onClick={() => setIsCreateTaskOpen(true)}
             className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -176,11 +196,10 @@ const TasksPage = () => {
             <button
               key={tab.id}
               onClick={() => setCurrentView(tab.id)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                isActive
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${isActive
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-              }`}
+                }`}
             >
               <Icon className="h-4 w-4" />
               {tab.label}
@@ -197,10 +216,11 @@ const TasksPage = () => {
       <CreateTaskModal
         isOpen={isCreateTaskOpen}
         onClose={() => setIsCreateTaskOpen(false)}
-        onTaskCreated={() => setRefreshKey((prev) => prev + 1)}
+        onTaskCreated={() => fetchTasks()}
       />
     </div>
   );
 };
 
 export default TasksPage;
+

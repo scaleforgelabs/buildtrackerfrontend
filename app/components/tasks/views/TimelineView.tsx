@@ -56,32 +56,16 @@ const statusOptions = [
   { value: "blocked", label: "Blocked" },
 ];
 
-function TimelineViewContent() {
+function TimelineViewContent({ tasks, loading, onTasksChange }: {
+  tasks: TaskData[];
+  loading: boolean;
+  onTasksChange: (tasks: TaskData[]) => void;
+}) {
   const { currentWorkspace } = useWorkspace();
   const searchParams = useSearchParams();
   const router = useRouter();
   const searchQuery = searchParams.get('q') || '';
-  const [tasks, setTasks] = useState<TaskData[]>([]);
-  const [loading, setLoading] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-
-    const fetchTasks = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get(`/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`);
-        setTasks(response.data.results?.data || []);
-      } catch (error) {
-        console.error("Failed to fetch tasks:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-  }, [currentWorkspace?.id]);
 
   const filteredTasks = searchQuery && searchQuery.length >= 2
     ? tasks.filter(t =>
@@ -107,11 +91,11 @@ function TimelineViewContent() {
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
-    setTasks(currentTasks =>
-      currentTasks.map(task =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
+    const oldTasks = [...tasks];
+    const updatedTasks = tasks.map(task =>
+      task.id === taskId ? { ...task, status: newStatus } : task
     );
+    onTasksChange(updatedTasks);
 
     try {
       await api.put(`/tasks/${currentWorkspace?.id}/tasks/${taskId}/status/`, {
@@ -120,6 +104,7 @@ function TimelineViewContent() {
       });
     } catch (error) {
       console.error("Failed to update task status", error);
+      onTasksChange(oldTasks);
     }
   };
 
@@ -229,11 +214,10 @@ function TimelineViewContent() {
                         className={`
                 w-full text-left px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-medium
                 transition-colors first:rounded-t-lg last:rounded-b-lg
-                ${
-                  task.status === statusOpt.value
-                    ? "bg-[var(--muted)] text-[var(--card-foreground)]"
-                    : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]/50"
-                }
+                ${task.status === statusOpt.value
+                            ? "bg-[var(--muted)] text-[var(--card-foreground)]"
+                            : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]/50"
+                          }
               `}
                       >
                         {statusOpt.label}
@@ -261,10 +245,14 @@ function TimelineViewContent() {
   );
 }
 
-const TimelineView = () => {
+const TimelineView = ({ tasks, loading, onTasksChange }: {
+  tasks: any[];
+  loading: boolean;
+  onTasksChange: (tasks: any[]) => void;
+}) => {
   return (
     <Suspense fallback={<div className="w-full p-6 text-center text-muted-foreground">Loading tasks...</div>}>
-      <TimelineViewContent />
+      <TimelineViewContent tasks={tasks} loading={loading} onTasksChange={onTasksChange} />
     </Suspense>
   );
 };

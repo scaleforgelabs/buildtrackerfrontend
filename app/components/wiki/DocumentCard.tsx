@@ -1,7 +1,9 @@
 import UserAvatar from "../ui/UserAvatar";
 import Image, { StaticImageData } from "next/image";
-import { Clock, MoreVertical } from "lucide-react";
+import { Clock, MoreVertical, Edit2, Download, Trash2 } from "lucide-react";
 import { Images } from "@/public";
+import { useState, useEffect } from "react";
+import { cn } from "@/libs/utils";
 
 const FILE_ICONS = [
   "/images/pdf_icon.svg", "/images/doc_icon.svg", "/images/docx_icon.svg",
@@ -17,6 +19,7 @@ function isFileIcon(src: string | StaticImageData): boolean {
 }
 
 type DocumentCardProps = {
+  id?: string;
   cover: string | StaticImageData;
   title: string;
   time: string;
@@ -29,19 +32,86 @@ type DocumentCardProps = {
     name?: string;
   };
   view?: "grid" | "list";
+  isRenaming?: boolean;
+  onRenameSuccess?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  onRename?: (newName: string) => void;
+  onDownload?: () => void;
+  onDelete?: () => void;
+  onOpen?: () => void;
+  canEdit?: boolean;
 };
 
 export function DocumentCard({
+  id,
   cover,
   title,
   time,
   fileType,
   user,
   view = "grid",
+  isRenaming: isRenamingProp = false,
+  onRenameSuccess,
+  onContextMenu,
+  onRename,
+  onDownload,
+  onDelete,
+  onOpen,
+  canEdit = true,
 }: DocumentCardProps) {
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [newName, setNewName] = useState(title);
+
+  useEffect(() => {
+    if (isRenamingProp) {
+      setIsRenaming(true);
+      setNewName(title);
+    }
+  }, [isRenamingProp, title]);
+
+  const handleRename = async () => {
+    if (isSaving) return;
+    if (!newName.trim() || newName === title) {
+      setIsRenaming(false);
+      onRenameSuccess?.();
+      return;
+    }
+    setIsSaving(true);
+    // Note: API call for document rename would go here
+    // For now, we signal success and rely on the page's onRename callback
+    try {
+      onRename?.(newName);
+      onRenameSuccess?.();
+    } catch (error) {
+      console.error('Rename failed:', error);
+    } finally {
+      setIsSaving(false);
+      setIsRenaming(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleRename();
+    } else if (e.key === 'Escape') {
+      setIsRenaming(false);
+      setNewName(title);
+      onRenameSuccess?.();
+    }
+    e.stopPropagation();
+  };
   if (view === "list") {
     return (
-      <div className="relative h-[82px] w-full rounded-xl overflow-hidden bg-card shadow-sm border flex items-center">
+      <div
+        onClick={(e) => {
+          if (!isRenaming) {
+            onOpen?.();
+          }
+        }}
+        onContextMenu={onContextMenu}
+        className="relative h-[82px] w-full rounded-xl overflow-hidden bg-card shadow-sm border flex items-center cursor-pointer hover:bg-muted/30 transition-colors"
+      >
         {/* Cover Image - Left side */}
         <div className="relative h-full w-[120px] flex-shrink-0 bg-muted">
           {isFileIcon(cover) ? (
@@ -55,8 +125,22 @@ export function DocumentCard({
 
         {/* Content - Right side */}
         <div className="flex-1 flex items-center justify-between px-4 py-3">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-foreground">{title}</h3>
+          <div className="flex flex-col gap-1 flex-1">
+            {isRenaming ? (
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onBlur={handleRename}
+                onKeyDown={handleKeyDown}
+                disabled={isSaving}
+                onFocus={(e) => e.target.select()}
+                onClick={(e) => e.stopPropagation()}
+                className="text-base font-semibold text-foreground bg-muted px-2 py-0.5 rounded outline-none border border-primary w-full"
+              />
+            ) : (
+              <h3 className="text-base font-semibold text-foreground truncate">{title}</h3>
+            )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>{time}</span>
@@ -69,18 +153,33 @@ export function DocumentCard({
               <span className="h-3 w-3 rounded-full bg-primary" />
               {fileType}
             </div>
-            <button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted transition-colors">
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onContextMenu?.(e);
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Grid view
   return (
-    <div className="relative h-[260px] w-full rounded-[24px] overflow-hidden bg-card shadow-sm">
+    <div
+      onContextMenu={onContextMenu}
+      onClick={(e) => {
+        if (!isRenaming) {
+          onOpen?.();
+        }
+      }}
+      className="relative h-[260px] w-full rounded-[24px] overflow-hidden bg-card shadow-sm group cursor-pointer transition-transform hover:-translate-y-1"
+    >
       {/* Cover Image - Full height */}
       <div className="absolute inset-0 bg-muted">
         {isFileIcon(cover) ? (
@@ -107,7 +206,13 @@ export function DocumentCard({
 
           <div className="relative z-10 px-4 pt-4 pb-3">
             {/* Floating menu */}
-            <button className="absolute right-7 top-5 flex h-12 w-12 items-center justify-center rounded-full bg-card shadow">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onContextMenu?.(e);
+              }}
+              className="absolute right-7 top-5 flex h-12 w-12 items-center justify-center rounded-full bg-card shadow opacity-0 group-hover:opacity-100 transition-opacity"
+            >
               <MoreVertical className="h-6 w-6 text-muted-foreground" />
             </button>
 
@@ -117,10 +222,23 @@ export function DocumentCard({
               <span>{time}</span>
             </div>
 
-            {/* Title */}
-            <h3 className="mt-2 text-lg text-black">
-              {title}
-            </h3>
+            {isRenaming ? (
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onBlur={handleRename}
+                onKeyDown={handleKeyDown}
+                disabled={isSaving}
+                onFocus={(e) => e.target.select()}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-2 text-lg text-black bg-white/80 px-2 py-0.5 rounded outline-none border-2 border-primary w-full shadow-sm"
+              />
+            ) : (
+              <h3 className="mt-2 text-lg text-black truncate">
+                {title}
+              </h3>
+            )}
 
             {/* Divider */}
             <div className="my-3 h-px bg-border" />

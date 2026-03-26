@@ -33,7 +33,7 @@ export default function ViewLinkModal({ open, onClose, link }: ViewLinkModalProp
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-lg rounded-3xl bg-card p-6 shadow-2xl sm:p-8 flex flex-col gap-6 animate-in fade-in zoom-in duration-200">
+            <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-card p-6 shadow-2xl sm:p-8 flex flex-col gap-6 animate-in fade-in zoom-in duration-200 scrollbar-hide">
 
                 {/* Header */}
                 <div className="flex items-start justify-between">
@@ -46,7 +46,7 @@ export default function ViewLinkModal({ open, onClose, link }: ViewLinkModalProp
                             )}
                         </div>
                         <div className="flex flex-col gap-1 min-w-0 pr-4">
-                            <h2 className="text-xl font-bold text-foreground truncate break-words">{link.title}</h2>
+                            <h2 className="text-xl font-bold text-foreground break-words">{link.title}</h2>
                             <span className="inline-flex w-fit rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-xs font-semibold text-primary capitalize">
                                 {link.category || "General"}
                             </span>

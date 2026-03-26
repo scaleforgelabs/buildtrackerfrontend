@@ -55,7 +55,13 @@ const LoginPageContent = () => {
                 }
             }
 
-            router.push('/home')
+            // Redirect to last workspace if available
+            const lastWorkspaceId = localStorage.getItem('lastWorkspaceId');
+            if (lastWorkspaceId) {
+                router.push(`/${lastWorkspaceId}/home`);
+            } else {
+                router.push('/home');
+            }
         } catch (err: any) {
             setError(err.message || 'Login failed')
         } finally {

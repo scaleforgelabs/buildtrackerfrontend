@@ -51,7 +51,7 @@ export default function EditMemberModal({
             setEmail(member.email || "");
             setName(member.name || "");
             setJobRole(member.role || "");
-            setRole(member.access === "Owner" ? "Admin" : member.access || "Member");
+            setRole(member.access || "Member");
             setError("");
 
             // Basic phone parsing
@@ -229,6 +229,9 @@ export default function EditMemberModal({
                                 <SelectValue placeholder="Select Role" />
                             </SelectTrigger>
                             <SelectContent>
+                                {member?.access === "Owner" && (
+                                    <SelectItem value="Owner" disabled>Owner</SelectItem>
+                                )}
                                 <SelectItem value="Admin">Admin</SelectItem>
                                 <SelectItem value="Member">Member</SelectItem>
                             </SelectContent>
