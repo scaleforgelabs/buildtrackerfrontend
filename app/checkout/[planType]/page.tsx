@@ -146,8 +146,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ planType: s
                                 </div>
                             </div>
                             <div className="text-right">
-                                <span className="font-bold text-gray-900 text-lg">{yearlyMonthlyFormatted}</span>
-                                <span className="text-sm text-gray-500"> / Month</span>
+                                <span className="font-bold text-gray-900 text-lg">₦{(currentPrices.yearly).toLocaleString()}</span>
+                                <span className="text-sm text-gray-500"> / Year</span>
                             </div>
                         </div>
                     </div>
@@ -177,11 +177,29 @@ export default function CheckoutPage({ params }: { params: Promise<{ planType: s
                 {/* Right Column: Payment Options */}
                 <div className="h-full">
                     <div className="bg-white rounded-[2rem] border border-primary/20 p-8 shadow-sm h-full flex flex-col relative overflow-hidden">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-8 text-center pt-4">Select a payment option</h3>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">Select a payment option</h3>
 
-                        <div className="space-y-6 flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+                        <div className="space-y-6 flex-1 flex flex-col justify-start max-w-md mx-auto w-full pt-2">
+                            {/* Flutterwave Option - Now at the top */}
+                            <button
+                                onClick={() => handlePayment('flutterwave')}
+                                disabled={isInitiating}
+                                className="group relative w-full bg-[#e04f38] hover:bg-[#d03d27] text-white rounded-[2rem] p-10 text-left transition-all duration-300 disabled:opacity-50 overflow-hidden shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                            >
+                                <div className="absolute top-8 right-8 opacity-40 group-hover:opacity-100 transition-opacity">
+                                    <Minimize2 size={42} />
+                                </div>
+                                <div className="relative z-10">
+                                    <p className="text-sm font-bold tracking-widest text-white/80 mb-3">FLUTTERWAVE</p>
+                                    <h4 className="text-4xl font-bold mb-8 pr-12 leading-tight">Process global payments.</h4>
+                                    <div className="inline-flex items-center space-x-2 bg-white text-[#e04f38] font-black px-8 py-3 rounded-full hover:bg-gray-50 transition-colors shadow-sm text-lg">
+                                        <span>Pay Now</span>
+                                    </div>
+                                </div>
+                            </button>
 
-                            {/* Paystack Option */}
+                            {/* Paystack Option - Commented out for now */}
+                            {/*
                             <button
                                 onClick={() => handlePayment('paystack')}
                                 disabled={isInitiating}
@@ -198,32 +216,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ planType: s
                                     </div>
                                 </div>
                             </button>
-
-                            {/* Logos Divider */}
-                            <div className="flex justify-end pr-4">
-                                <div className="flex -space-x-2">
-                                    <div className="w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">M</div>
-                                    <div className="w-8 h-8 rounded-full bg-orange-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">A</div>
-                                </div>
-                            </div>
-
-                            {/* Flutterwave Option */}
-                            <button
-                                onClick={() => handlePayment('flutterwave')}
-                                disabled={isInitiating}
-                                className="group relative w-full bg-[#e04f38] hover:bg-[#d03d27] text-white rounded-[2rem] p-8 text-left transition-all duration-300 disabled:opacity-50 overflow-hidden"
-                            >
-                                <div className="absolute top-6 right-6 opacity-40 group-hover:opacity-100 transition-opacity">
-                                    <Minimize2 size={32} />
-                                </div>
-                                <div className="relative z-10">
-                                    <p className="text-sm font-bold tracking-widest text-white/80 mb-2">FLUTTERWAVE</p>
-                                    <h4 className="text-3xl font-bold mb-6 pr-8 leading-tight">Process global payments.</h4>
-                                    <div className="inline-flex items-center space-x-2 bg-white text-[#e04f38] font-bold px-6 py-2.5 rounded-full hover:bg-gray-50 transition-colors">
-                                        <span>Pay Now</span>
-                                    </div>
-                                </div>
-                            </button>
+                             */}
                         </div>
                     </div>
                 </div>

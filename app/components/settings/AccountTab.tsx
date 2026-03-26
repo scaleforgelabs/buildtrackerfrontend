@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import UserAvatar from "../ui/UserAvatar";
 
 export const AccountTab = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, refreshUser } = useAuth();
     const { currentWorkspace } = useWorkspace();
 
     // Profile State
@@ -76,7 +76,8 @@ export const AccountTab = () => {
             }
 
             await authService.updateProfile(data);
-            toast.success("Profile updated successfully! Refresh to see your new data everywhere.");
+            await refreshUser();
+            toast.success("Profile updated successfully!");
         } catch (error: any) {
             toast.error(error?.response?.data?.error || "Failed to update profile");
         } finally {

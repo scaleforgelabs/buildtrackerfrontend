@@ -14,23 +14,15 @@ import { motion, AnimatePresence } from "framer-motion";
 // Tab Components
 import { AccountTab } from "@/app/components/settings/AccountTab";
 import { BillingTab } from "@/app/components/settings/BillingTab";
-import { WorkspaceTab } from "@/app/components/settings/WorkspaceTab";
-import { SecurityTab } from "@/app/components/settings/SecurityTab";
-import { NotificationTab } from "@/app/components/settings/NotificationTab";
-import { PreferencesTab } from "@/app/components/settings/PreferencesTab";
 
-type TabType = "Account" | "Workspace" | "Billing" | "Notification" | "Security" | "Preferences";
+type TabType = "Account" | "Billing";
 
 const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState<TabType>("Account");
 
     const tabs: { id: TabType; icon: React.ReactNode; label: string }[] = [
         { id: "Account", icon: <User className="w-4 h-4" />, label: "Account" },
-        { id: "Workspace", icon: <Briefcase className="w-4 h-4" />, label: "Workspace" },
         { id: "Billing", icon: <CreditCard className="w-4 h-4" />, label: "Billing" },
-        { id: "Notification", icon: <Bell className="w-4 h-4" />, label: "Notification" },
-        { id: "Security", icon: <Shield className="w-4 h-4" />, label: "Security" },
-        { id: "Preferences", icon: <Sliders className="w-4 h-4" />, label: "Preferences" },
     ];
 
     return (
@@ -69,10 +61,6 @@ const SettingsPage = () => {
                     >
                         {activeTab === "Account" && <AccountTab />}
                         {activeTab === "Billing" && <BillingTab />}
-                        {activeTab === "Workspace" && <WorkspaceTab />}
-                        {activeTab === "Security" && <SecurityTab />}
-                        {activeTab === "Notification" && <NotificationTab />}
-                        {activeTab === "Preferences" && <PreferencesTab />}
                     </motion.div>
                 </AnimatePresence>
             </div>
