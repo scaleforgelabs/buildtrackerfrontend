@@ -32,7 +32,7 @@ const navItems = [
   { label: "Team", icon: Users, link: "/team" },
   { label: "Wiki", icon: BookOpen, link: "/wiki" },
   { label: "Quick Links", icon: Link2, link: "/quick-links" },
-  { label: "Integrations", icon: Plug, link: "/integrations" },
+  // { label: "Integrations", icon: Plug, link: "/integrations" },
   { label: "Modules", icon: Boxes, link: "/modules" },
   { label: "Reports", icon: BarChart3, link: "/reports" },
   { label: "Activity Logs", icon: LayoutDashboard, link: "/activity-logs" },
@@ -74,15 +74,13 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`h-screen bg-background p-4 fixed lg:relative z-50 transition-transform duration-300 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`h-screen bg-background p-4 fixed lg:relative z-50 transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
         {/* Grey container */}
         <div
-          className={`h-full bg-muted rounded-2xl transition-all duration-300 flex flex-col justify-between ${
-            collapsed ? "w-16" : "w-72"
-          }`}
+          className={`h-full bg-muted rounded-2xl transition-all duration-300 flex flex-col justify-between ${collapsed ? "w-16" : "w-72"
+            }`}
         >
           <div className={`${collapsed ? "px-2 pt-3" : "px-4 pt-4"}`}>
             {/* Logo */}
@@ -135,9 +133,8 @@ export default function Sidebar() {
                     </div>
                   )}
                   <ChevronDown
-                    className={`w-4 h-4 text-muted-foreground transition-transform ${
-                      workspaceOpen ? "rotate-180" : ""
-                    }`}
+                    className={`w-4 h-4 text-muted-foreground transition-transform ${workspaceOpen ? "rotate-180" : ""
+                      }`}
                   />
                 </button>
 
@@ -150,11 +147,10 @@ export default function Sidebar() {
                           switchWorkspace(ws);
                           setWorkspaceOpen(false);
                         }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-sidebar-accent ${
-                          currentWorkspace?.id === ws.id
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-sidebar-accent ${currentWorkspace?.id === ws.id
                             ? "bg-sidebar-accent"
                             : ""
-                        }`}
+                          }`}
                       >
                         <div className="w-2 h-2 rounded-full bg-primary" />
                         <div>
@@ -227,18 +223,15 @@ export default function Sidebar() {
                         }
                         setMobileOpen(false);
                       }}
-                      className={`w-full flex items-center rounded-xl transition-colors ${
-                        collapsed ? "justify-center p-2" : "gap-3 px-3 py-2"
-                      } ${
-                        isActive
+                      className={`w-full flex items-center rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "gap-3 px-3 py-2"
+                        } ${isActive
                           ? "font-semibold text-foreground bg-secondary"
                           : "text-muted-foreground hover:bg-secondary/50"
-                      }`}
+                        }`}
                     >
                       <Icon
-                        className={`${collapsed ? "w-6 h-6" : "w-5 h-5"} ${
-                          isActive ? "text-primary" : "text-muted-foreground"
-                        }`}
+                        className={`${collapsed ? "w-6 h-6" : "w-5 h-5"} ${isActive ? "text-primary" : "text-muted-foreground"
+                          }`}
                       />
 
                       {!collapsed && (
