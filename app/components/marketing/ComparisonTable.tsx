@@ -6,7 +6,7 @@ import { Check, Minus } from "lucide-react";
 const features = [
     { name: "Plan features", isHeader: true },
     { name: "Custom Workflows", starter: true, pro: true, business: true, enterprise: true },
-    { name: "Users", starter: "3", pro: "10", business: "30", enterprise: "Unlimited" },
+    { name: "Users", starter: "5", pro: "10", business: "30", enterprise: "Unlimited" },
     { name: "Individual Data", starter: "150MB", pro: "1GB", business: "5GB", enterprise: "Unlimited" },
     { name: "Integrations", starter: true, pro: true, business: true, enterprise: true },
     { name: "Automated Workflows", starter: false, pro: true, business: true, enterprise: true },
