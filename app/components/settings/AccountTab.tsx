@@ -126,11 +126,6 @@ export const AccountTab = () => {
                             size={96}
                             className="ring-4 ring-background shadow-lg"
                         />
-                        <div
-                            className="absolute inset-0 bg-black/10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <Camera className="w-8 h-8 text-white" />
-                        </div>
                         <input
                             type="file"
                             accept="image/png, image/jpeg"
@@ -138,12 +133,6 @@ export const AccountTab = () => {
                             ref={fileInputRef}
                             onChange={handleAvatarChange}
                         />
-                        <button
-                            className="absolute -bottom-1 -right-1 bg-background p-2 rounded-full shadow-md border border-border hover:bg-muted transition-colors"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <Edit className="w-4 h-4 text-primary" />
-                        </button>
                     </div>
 
                     <div className="space-y-1">
