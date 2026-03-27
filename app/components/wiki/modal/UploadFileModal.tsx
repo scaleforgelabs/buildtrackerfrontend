@@ -35,8 +35,8 @@ export default function UploadFileModal({ open, onClose, folderId, onUploaded }:
             setFiles([]);
             onUploaded?.();
             onClose();
-        } catch {
-            setError("Upload failed. Please try again.");
+        } catch (err: any) {
+            setError(err.response?.data?.error || "Upload failed. Please try again.");
         } finally {
             setLoading(false);
         }

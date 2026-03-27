@@ -45,7 +45,8 @@ export default function CreateWorkspaceModal({ isOpen, onClose, required = false
       // automatically switch so the dashboard refreshes correctly
       switchWorkspace(newWorkspace);
     } catch (err: any) {
-      setError(err.message || 'Failed to create workspace');
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to create workspace';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
