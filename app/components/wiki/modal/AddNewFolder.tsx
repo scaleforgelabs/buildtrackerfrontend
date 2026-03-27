@@ -23,10 +23,12 @@ export default function AddNewFolderModal({
     const { currentWorkspace } = useWorkspace();
     const [name, setName] = useState("");
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!currentWorkspace?.id || !name.trim()) return;
+        setError(null);
 
         try {
             setLoading(true);
@@ -43,8 +45,9 @@ export default function AddNewFolderModal({
             setName("");
             onFolderCreated?.();
             onClose();
-        } catch (error) {
-            console.error("Failed to create folder:", error);
+        } catch (err: any) {
+            setError(err.response?.data?.error || "Failed to create folder. Please try again.");
+            console.error("Failed to create folder:", err);
         } finally {
             setLoading(false);
         }
@@ -73,6 +76,13 @@ export default function AddNewFolderModal({
                 {/* Form */}
                 <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
                     <p className="text-xl font-semibold">New Folder</p>
+
+                    {error && (
+                        <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                            {error}
+                        </div>
+                    )}
+
                     {/* Title */}
                     <FormField label="">
                         <Input
