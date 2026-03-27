@@ -69,7 +69,7 @@ const PricingPage = () => {
                                     price="0"
                                     billingCycle="month"
                                     features={[
-                                        "Up to 3 users",
+                                        "Up to 5 users",
                                         "Up to 2 workspaces",
                                         "500 MB Storage",
                                         "All tools, unlocked with no limits",
