@@ -241,26 +241,33 @@ export default function TopBar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-2 md:gap-3">
-          <Link href="/notifications" className="md:flex hidden">
-            <button className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition">
-              <Bell className="w-4 h-4 md:w-5 md:h-5 text-foreground" />
+          <Link href="/notifications" className="md:flex hidden" aria-label="View notifications">
+            <button
+              aria-label="Notifications"
+              className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition"
+            >
+              <Bell className="w-4 h-4 md:w-5 md:h-5 text-foreground" aria-hidden="true" />
             </button>
           </Link>
 
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition hidden sm:flex"
           >
             {theme === "dark" ? (
-              <Sun className="w-4 h-4 md:w-5 md:h-5 text-foreground" />
+              <Sun className="w-4 h-4 md:w-5 md:h-5 text-foreground" aria-hidden="true" />
             ) : (
-              <Moon className="w-4 h-4 md:w-5 md:h-5 text-foreground" />
+              <Moon className="w-4 h-4 md:w-5 md:h-5 text-foreground" aria-hidden="true" />
             )}
           </button>
 
-          <Link href="/settings" className="hidden sm:flex">
-            <button className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition">
-              <Settings className="w-4 h-4 md:w-5 md:h-5 text-foreground" />
+          <Link href="/settings" className="hidden sm:flex" aria-label="Settings">
+            <button
+              aria-label="Settings"
+              className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition"
+            >
+              <Settings className="w-4 h-4 md:w-5 md:h-5 text-foreground" aria-hidden="true" />
             </button>
           </Link>
 

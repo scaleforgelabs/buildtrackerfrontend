@@ -9,23 +9,20 @@ import {
     RefreshCw,
     UserPlus,
 } from "lucide-react";
-import Image from "next/image";
+import NextImage from "next/image";
 import { Images } from "@/public";
-
-const logs = [
-    { user: "Muaz Balogun", event: "Task Created", type: "Task", icon: <Plus className="h-4 w-4 text-blue-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Abdullah Saliu", event: "Integration Added", type: "Task", icon: <UserPlus className="h-4 w-4 text-green-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Muaz Balogun", event: "Task Status Changed", type: "Task", icon: <RefreshCw className="h-4 w-4 text-blue-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Muaz Balogun", event: "Comment Updated", type: "Task", icon: <MessageSquare className="h-4 w-4 text-blue-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Abdullateef Ojugb", event: "Task Created", type: "Task", icon: <Plus className="h-4 w-4 text-blue-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Abdullah Saliu", event: "Task Created", type: "Task", icon: <Plus className="h-4 w-4 text-blue-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Muaz Balogun", event: "Comment Deleted", type: "Task", icon: <Trash2 className="h-4 w-4 text-red-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Abdullah Saliu", event: "Task Added", type: "Task", icon: <Plus className="h-4 w-4 text-blue-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Abdullah Saliu", event: "Task Created", type: "Task", icon: <Plus className="h-4 w-4 text-blue-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-    { user: "Muaz Balogun", event: "Task Created", type: "Task", icon: <Plus className="h-4 w-4 text-blue-500" />, desc: "Create new task 'Abdullah Saliu' (Ticket No - 12...", date: "09 Dec 2025, 5:30 PM", avatar: Images.user },
-];
+import { monitoringService } from "@/libs/api/services";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 export default function ActivityLogsPage() {
+    const { data: logsRes, isLoading } = useQuery({
+        queryKey: ['activityLogs'],
+        queryFn: () => monitoringService.getLogs(),
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const logs = (logsRes as any)?.data?.results?.data || (logsRes as any)?.data || [];
     return (
         <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
             {/* Header */}
@@ -65,7 +62,9 @@ export default function ActivityLogsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {logs.map((log, i) => (
+                            {isLoading ? (
+                                <tr><td colSpan={6} className="py-20 text-center text-muted-foreground">Loading activity logs...</td></tr>
+                            ) : logs.map((log: any, i: number) => (
                                 <tr key={i} className="group hover:bg-muted/30 transition-colors">
                                     <td className="px-4 py-3">
                                         <input type="checkbox" className="h-5 w-5 rounded-md border-border text-blue-600 focus:ring-blue-500" />
@@ -73,7 +72,7 @@ export default function ActivityLogsPage() {
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3">
                                             <div className="h-10 w-10 relative rounded-full overflow-hidden border border-border">
-                                                <Image src={log.avatar} alt={log.user} fill className="object-cover" />
+                                                <NextImage src={log.avatar || Images.user} alt={log.user || ""} fill className="object-cover" />
                                             </div>
                                             <span className="font-semibold text-foreground">{log.user}</span>
                                         </div>

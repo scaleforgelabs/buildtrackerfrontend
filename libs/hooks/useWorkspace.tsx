@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter, useParams, usePathname } from 'next/navigation';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback, useRef } from 'react';
+import { useRouter, useParams, usePathname, useSearchParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { workspacesService } from '@/libs/api/services';
 import { useAuth } from './useAuth';
 
@@ -42,161 +43,161 @@ interface WorkspaceContextType {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
   workspaceSettings: WorkspaceSettings | null;
-  setWorkspaceSettings: (settings: WorkspaceSettings) => void;
   loading: boolean;
   error: string | null;
-  fetchWorkspaces: () => Promise<void>;
-  createWorkspace: (data: { name: string; description?: string; type: "Construction" | "Software" | "Event" | "Other" }) => Promise<Workspace>;
+  fetchWorkspaces: () => void; // Keeping for compatibility, now a no-op or trigger
+  createWorkspace: (data: any) => Promise<Workspace>;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
+  setWorkspaceSettings: (settings: WorkspaceSettings) => void;
   switchWorkspace: (workspace: Workspace) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
-  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const queryClient = useQueryClient();
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
   const { isAuthenticated, user } = useAuth();
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
 
+  // 1. Fetch Workspaces via React Query
+  const {
+    data: workspaces = [],
+    isLoading: loadingWorkspaces,
+    error: workspacesError,
+    refetch: fetchWorkspaces
+  } = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: async () => {
+      const response = await workspacesService.getWorkspaces();
+      return response.data.results.data as Workspace[];
+    },
+    enabled: !!isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // 2. Fetch Settings via React Query
+  const {
+    data: workspaceSettings = null,
+    isLoading: loadingSettings,
+  } = useQuery({
+    queryKey: ['workspaceSettings', currentWorkspace?.id],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
+      const response = await workspacesService.getSettings(wsId);
+      return response.data.settings as WorkspaceSettings;
+    },
+    enabled: !!currentWorkspace?.id && !!isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // 3. Create Workspace Mutation
+  const createWorkspaceMutation = useMutation({
+    mutationFn: (data: any) => workspacesService.createWorkspace(data),
+    onSuccess: (response) => {
+      const newWorkspace = response.data.workspace;
+      queryClient.setQueryData(['workspaces'], (prev: Workspace[] | undefined) =>
+        prev ? [newWorkspace, ...prev] : [newWorkspace]
+      );
+      setCurrentWorkspace(newWorkspace);
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    }
+  });
+
+  // 4. Initialization and URL Sync logic
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!isAuthenticated || workspaces.length === 0) return;
 
-  const fetchWorkspaces = async () => {
-    if (!mounted || !isAuthenticated) return;
+    const workspaceIdFromUrl = params?.id as string;
 
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await workspacesService.getWorkspaces({ _t: Date.now() } as any);
-      const fetchedWorkspaces = response.data.results.data;
-      setWorkspaces(fetchedWorkspaces);
-
-      const workspaceId = params?.id as string;
-      if (workspaceId) {
-        const workspace = fetchedWorkspaces.find((ws: Workspace) => ws.id === workspaceId);
-        if (workspace) {
-          setCurrentWorkspace(workspace);
-          localStorage.setItem('lastWorkspaceId', workspace.id);
-        } else {
-          // If workspace ID in URL doesn't exist, redirect to first workspace
-          if (fetchedWorkspaces.length > 0) {
-            const firstWorkspace = fetchedWorkspaces[0];
-            const pathParts = pathname.split('/');
-            const currentPage = pathParts[pathParts.length - 1] || 'home';
-            router.replace(`/${firstWorkspace.id}/${currentPage}`);
-          }
+    if (workspaceIdFromUrl) {
+      const found = workspaces.find(ws => ws.id === workspaceIdFromUrl);
+      if (found) {
+        if (currentWorkspace?.id !== found.id) {
+          setCurrentWorkspace(found);
+          localStorage.setItem('lastWorkspaceId', found.id);
         }
       } else {
-        // No workspace ID in URL, prioritize backend last_active_workspace
-        const lastWorkspaceId = user?.last_active_workspace || localStorage.getItem('lastWorkspaceId');
-
-        if (lastWorkspaceId) {
-          const workspace = fetchedWorkspaces.find((ws: Workspace) => ws.id === lastWorkspaceId);
-          if (workspace) {
-            setCurrentWorkspace(workspace);
-          }
-        }
-
-        if (fetchedWorkspaces.length > 0 && (pathname === '/dashboard' || pathname === '/' || pathname === '/home')) {
-          const lastId = user?.last_active_workspace || localStorage.getItem('lastWorkspaceId');
-          const workspaceToRedirect = fetchedWorkspaces.find((ws: Workspace) => ws.id === lastId) || fetchedWorkspaces[0];
-          router.replace(`/${workspaceToRedirect.id}/home`);
+        // Redirect if invalid ID
+        const first = workspaces[0];
+        const pathParts = pathname.split('/');
+        if (pathParts.length > 2) {
+          pathParts[1] = first.id;
+          router.replace(pathParts.join('/'));
+        } else {
+          router.replace(`/${first.id}/home`);
         }
       }
-    } catch (err: any) {
-      console.error('Failed to fetch workspaces:', err);
-      setError(err.response?.data?.error || 'Failed to fetch workspaces');
-    } finally {
-      setLoading(false);
-    }
-  };
+    } else {
+      // Default workspace selection
+      const lastId = user?.last_active_workspace || localStorage.getItem('lastWorkspaceId');
+      const target = workspaces.find(ws => ws.id === lastId) || workspaces[0];
 
-  const createWorkspace = async (data: { name: string; description?: string; type: "Construction" | "Software" | "Event" | "Other" }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await workspacesService.createWorkspace(data);
-      const newWorkspace = response.data.workspace;
-      setWorkspaces(prev => [newWorkspace, ...prev]);
-      setCurrentWorkspace(newWorkspace);
-      return newWorkspace;
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create workspace');
-      throw err;
-    } finally {
-      setLoading(false);
+      if (target && (pathname === '/dashboard' || pathname === '/' || pathname === '/home')) {
+        router.replace(`/${target.id}/home`);
+      }
+
+      if (target && !currentWorkspace) {
+        setCurrentWorkspace(target);
+      }
     }
-  };
+  }, [workspaces, params?.id, isAuthenticated]);
+
+  // Sync last_active_workspace with backend
+  useEffect(() => {
+    if (isAuthenticated && user && currentWorkspace && user.last_active_workspace !== currentWorkspace.id) {
+      import('@/libs/api/auth').then(({ authService }) => {
+        authService.updateProfile({ last_active_workspace: currentWorkspace.id });
+      }).catch(err => console.error('Failed to sync last workspace:', err));
+    }
+  }, [currentWorkspace, isAuthenticated, user]);
+
+  const searchParams = useSearchParams();
+  const pathnameRef = useRef(pathname);
+  const searchParamsRef = useRef(searchParams);
 
   useEffect(() => {
-    if (mounted && isAuthenticated) {
-      fetchWorkspaces();
-    }
-  }, [mounted, isAuthenticated]);
+    pathnameRef.current = pathname;
+    searchParamsRef.current = searchParams;
+  }, [pathname, searchParams]);
 
-  // Fetch settings and sync last_active_workspace when currentWorkspace changes
-  useEffect(() => {
-    let isMounted = true;
-    const syncWorkspaceAndFetchSettings = async () => {
-      if (!currentWorkspace) {
-        setWorkspaceSettings(null);
-        return;
-      }
-
-      // Sync with backend if different
-      if (isAuthenticated && user && user.last_active_workspace !== currentWorkspace.id) {
-        try {
-          // Import authService dynamically to avoid circular dependency if any, 
-          // although hooks are usually fine.
-          const { authService } = await import('@/libs/api/auth');
-          await authService.updateProfile({ last_active_workspace: currentWorkspace.id });
-        } catch (err) {
-          console.error('Failed to sync last workspace:', err);
-        }
-      }
-
-      try {
-        const response = await workspacesService.getSettings(currentWorkspace.id);
-        if (isMounted) {
-          setWorkspaceSettings(response.data.settings);
-        }
-      } catch (err) {
-        console.error('Failed to fetch workspace settings:', err);
-      }
-    };
-
-    syncWorkspaceAndFetchSettings();
-    return () => { isMounted = false; };
-  }, [currentWorkspace, isAuthenticated]);
-
-  const switchWorkspace = (workspace: Workspace) => {
-    if (!mounted) return;
+  const switchWorkspace = useCallback((workspace: Workspace) => {
     setCurrentWorkspace(workspace);
-    const pathParts = pathname.split('/');
-    const currentPage = pathParts[pathParts.length - 1] || 'home';
-    router.push(`/${workspace.id}/${currentPage}`);
-  };
+    const currentPathname = pathnameRef.current;
+    const currentSearchParams = searchParamsRef.current;
 
-  const value = {
+    const pathParts = currentPathname.split('/'); // ['', 'id', 'sub', 'path']
+    const queryString = currentSearchParams.toString();
+    const suffix = queryString ? `?${queryString}` : '';
+
+    if (pathParts.length > 2) {
+      pathParts[1] = workspace.id;
+      router.push(pathParts.join('/') + suffix);
+    } else {
+      router.push(`/${workspace.id}/home${suffix}`);
+    }
+  }, [router]);
+
+  const value = useMemo(() => ({
     workspaces,
     currentWorkspace,
     workspaceSettings,
-    setWorkspaceSettings,
-    loading,
-    error,
-    fetchWorkspaces,
-    createWorkspace,
+    loading: loadingWorkspaces || loadingSettings,
+    error: workspacesError ? (workspacesError as any).message : null,
+    fetchWorkspaces: () => fetchWorkspaces(),
+    createWorkspace: async (data: any) => {
+      const res = await createWorkspaceMutation.mutateAsync(data);
+      return res.data.workspace;
+    },
     setCurrentWorkspace,
+    setWorkspaceSettings: (settings: WorkspaceSettings) => {
+      queryClient.setQueryData(['workspaceSettings', currentWorkspace?.id], settings);
+    },
     switchWorkspace,
-  };
+  }), [workspaces, currentWorkspace, workspaceSettings, loadingWorkspaces, loadingSettings, workspacesError, switchWorkspace, queryClient, createWorkspaceMutation, fetchWorkspaces]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

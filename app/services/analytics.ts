@@ -54,21 +54,28 @@ export interface PerformanceAnalytics {
 export const AnalyticsService = {
     getDashboardStats: async (workspaceId: string, params?: any) => {
         const response = await api.get<DashboardStats>(`/analytics/workspaces/${workspaceId}/dashboard/stats`, {
-            params: { ...params, _t: Date.now() }
+            params
         });
         return response.data;
     },
 
     getDashboardCharts: async (workspaceId: string, params?: any) => {
         const response = await api.get<DashboardCharts>(`/analytics/workspaces/${workspaceId}/dashboard/charts`, {
-            params: { ...params, _t: Date.now() }
+            params
         });
         return response.data;
     },
 
     getPerformanceAnalytics: async (workspaceId: string, params?: any) => {
         const response = await api.get<PerformanceAnalytics>(`/analytics/workspaces/${workspaceId}/analytics/performance`, {
-            params: { ...params, _t: Date.now() }
+            params
+        });
+        return response.data;
+    },
+
+    getTrends: async (workspaceId: string, params?: any) => {
+        const response = await api.get(`/analytics/workspaces/${workspaceId}/analytics/trends`, {
+            params
         });
         return response.data;
     }

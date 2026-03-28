@@ -1,4 +1,3 @@
-"use client";
 
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/Topbar";
@@ -24,9 +23,9 @@ export default function DashboardLayout({
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden h-screen">
               <div className="flex-1 flex flex-col p-2.5 md:p-6 gap-4 overflow-hidden">
                 <TopBar />
-                <div className="flex-1 overflow-auto scrollbar-hide rounded-[2rem] bg-card">
+                <main className="flex-1 overflow-auto scrollbar-hide rounded-[2rem] bg-card">
                   {children}
-                </div>
+                </main>
               </div>
             </div>
           </div>

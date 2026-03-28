@@ -61,13 +61,13 @@ function WorkspaceLayoutContent({ children }: { children: React.ReactNode }) {
           <Suspense fallback={null}>
             <TopBar />
           </Suspense>
-          <div
+          <main
             ref={contentRef}
             data-search-highlight-root
             className="flex-1 overflow-auto scrollbar-hide rounded-[2rem] bg-card"
           >
             {children}
-          </div>
+          </main>
           <Suspense fallback={null}>
             <SearchHighlighter containerRef={contentRef} />
           </Suspense>

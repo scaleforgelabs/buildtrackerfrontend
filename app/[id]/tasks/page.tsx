@@ -9,51 +9,48 @@ import {
   Plus,
   Upload,
 } from "lucide-react";
-import KanbanView from "@/app/components/tasks/views/KanbanView";
-import ListView from "@/app/components/tasks/views/ListView";
-import BoardView from "@/app/components/tasks/views/BoardView";
-import TimelineView from "@/app/components/tasks/views/TimelineView";
-import CreateTaskModal from "@/app/components/tasks/modals/CreateTaskModal";
+import dynamic from "next/dynamic";
+const KanbanView = dynamic(() => import("@/app/components/tasks/views/KanbanView"), { ssr: false });
+const ListView = dynamic(() => import("@/app/components/tasks/views/ListView"), { ssr: false });
+const BoardView = dynamic(() => import("@/app/components/tasks/views/BoardView"), { ssr: false });
+const TimelineView = dynamic(() => import("@/app/components/tasks/views/TimelineView"), { ssr: false });
+const CreateTaskModal = dynamic(() => import("@/app/components/tasks/modals/CreateTaskModal"), { ssr: false });
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
+import { useRef } from "react";
 import Papa from "papaparse";
 import { tasksService } from "@/libs/api/services";
-import { useRef } from "react";
 import api from "@/libs/api";
+import { usePathname } from "next/navigation";
+import { TaskData } from "@/app/constants/tasks";
 
 const TasksPage = () => {
+  const queryClient = useQueryClient();
   const [currentView, setCurrentView] = useState("list");
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pathname = usePathname();
+  const isRouteActive = pathname.includes('/tasks');
   const { currentWorkspace } = useWorkspace();
+
+  const { data: tasksRes, isLoading: tasksLoading, refetch: fetchTasks } = useQuery({
+    queryKey: ['workspaceTasks', currentWorkspace?.id],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
+      return tasksService.getTasksByWorkspace(wsId);
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const tasks: TaskData[] = (tasksRes as any)?.data?.results?.data || (tasksRes as any)?.data || [];
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const fetchTasks = useCallback(async () => {
-    if (!currentWorkspace?.id) return;
-    try {
-      setTasksLoading(true);
-      const response = await api.get(
-        `/tasks/${currentWorkspace.id}/tasks/?_t=${Date.now()}`
-      );
-      setTasks(response.data.results?.data || []);
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error);
-    } finally {
-      setTasksLoading(false);
-    }
-  }, [currentWorkspace?.id]);
-
-  useEffect(() => {
-    if (mounted && currentWorkspace?.id) {
-      fetchTasks();
-    }
-  }, [mounted, currentWorkspace?.id, fetchTasks]);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -116,19 +113,19 @@ const TasksPage = () => {
   ];
 
   const renderView = () => {
-    if (!mounted) return <div>Loading...</div>;
+    if (!mounted || tasksLoading) return <div className="p-8 text-center text-muted-foreground">Loading tasks...</div>;
 
     switch (currentView) {
       case "kanban":
-        return <KanbanView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} onRefresh={fetchTasks} />;
+        return <KanbanView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['workspaceTasks', currentWorkspace?.id] })} onRefresh={() => fetchTasks()} />;
       case "list":
-        return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />;
+        return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['workspaceTasks', currentWorkspace?.id] })} />;
       case "board":
-        return <BoardView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />;
+        return <BoardView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['workspaceTasks', currentWorkspace?.id] })} />;
       case "timeline":
-        return <TimelineView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />;
+        return <TimelineView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['workspaceTasks', currentWorkspace?.id] })} />;
       default:
-        return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />;
+        return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['workspaceTasks', currentWorkspace?.id] })} />;
     }
   };
 
@@ -197,8 +194,8 @@ const TasksPage = () => {
               key={tab.id}
               onClick={() => setCurrentView(tab.id)}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${isActive
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 }`}
             >
               <Icon className="h-4 w-4" />

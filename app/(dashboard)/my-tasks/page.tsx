@@ -2,9 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { Trash2, MoreVertical, Plus, Calendar, Clock, ArrowUp, Upload, MoreHorizontal, Edit2 } from "lucide-react";
-import AddPersonalTaskModal from "@/app/components/modals/AddPersonalTaskModal";
-import EditPersonalTaskModal from "@/app/components/modals/EditPersonalTaskModal";
+import dynamic from "next/dynamic";
+const AddPersonalTaskModal = dynamic(() => import("@/app/components/modals/AddPersonalTaskModal"), { ssr: false });
+const EditPersonalTaskModal = dynamic(() => import("@/app/components/modals/EditPersonalTaskModal"), { ssr: false });
 import { personalTasksService } from "@/libs/api/services";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/libs/hooks/useAuth";
+import toast from "react-hot-toast";
 
 interface PersonalTask {
   id: string;
@@ -14,89 +18,84 @@ interface PersonalTask {
 }
 
 const MyTasksPage = () => {
-  const [tasks, setTasks] = useState<PersonalTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<PersonalTask | null>(null);
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
+  // 1. Fetch Tasks
+  const { data: tasksRes, isLoading: loading } = useQuery({
+    queryKey: ['personalTasks', user?.id],
+    queryFn: () => personalTasksService.getTasks(),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      const response = await personalTasksService.getTasks();
-      setTasks(response.data);
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const tasks: PersonalTask[] = (tasksRes as any)?.data || tasksRes || [];
 
-  const handleAddTask = async (taskData: { title: string; deadline?: string }) => {
-    try {
-      const response = await personalTasksService.createTask(taskData);
-      setTasks([response.data, ...tasks]);
-    } catch (error) {
-      console.error("Failed to create task:", error);
-    }
-  };
+  // 2. Toggle Completion (Optimistic)
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, completed }: { id: string; completed: boolean }) =>
+      personalTasksService.updateTask(id, { completed }),
+    onMutate: async ({ id, completed }) => {
+      await queryClient.cancelQueries({ queryKey: ['personalTasks', user?.id] });
+      const previousTasks = queryClient.getQueryData(['personalTasks', user?.id]);
+      queryClient.setQueryData(['personalTasks', user?.id], (old: any) => {
+        const data = old?.data || old;
+        const newTasks = data.map((t: any) => t.id === id ? { ...t, completed } : t);
+        return Array.isArray(old) ? newTasks : { ...old, data: newTasks };
+      });
+      return { previousTasks };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['personalTasks', user?.id], context?.previousTasks);
+      toast.error("Failed to update task");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['personalTasks', user?.id] });
+    },
+  });
 
-  const handleDeleteTask = async (id: string) => {
-    try {
-      await personalTasksService.deleteTask(id);
-      setTasks(tasks.filter((task) => task.id !== id));
-    } catch (error) {
-      console.error("Failed to delete task:", error);
-    }
-  };
+  // 3. Delete Task (Optimistic)
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => personalTasksService.deleteTask(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['personalTasks', user?.id] });
+      const previousTasks = queryClient.getQueryData(['personalTasks', user?.id]);
+      queryClient.setQueryData(['personalTasks', user?.id], (old: any) => {
+        const data = old?.data || old;
+        const newTasks = data.filter((t: any) => t.id !== id);
+        return Array.isArray(old) ? newTasks : { ...old, data: newTasks };
+      });
+      return { previousTasks };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['personalTasks', user?.id], context?.previousTasks);
+      toast.error("Failed to delete task");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['personalTasks', user?.id] });
+    },
+  });
 
-  const handleToggleTaskCompletion = async (id: string, currentCompleted: boolean) => {
-    try {
-      setTasks(
-        tasks.map((task) =>
-          task.id === id ? { ...task, completed: !currentCompleted } : task,
-        ),
-      );
-      await personalTasksService.updateTask(id, { completed: !currentCompleted });
-    } catch (error) {
-      console.error("Failed to update task:", error);
-      // Revert optimistic update
-      setTasks(
-        tasks.map((task) =>
-          task.id === id ? { ...task, completed: currentCompleted } : task,
-        ),
-      );
-    }
-  };
+  // 4. Create Task
+  const createMutation = useMutation({
+    mutationFn: (taskData: { title: string; deadline?: string }) => personalTasksService.createTask(taskData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['personalTasks', user?.id] });
+      toast.success("Task created!");
+    },
+  });
 
-  const handleEditTask = async (id: string, updatedData: { title: string; deadline?: string }) => {
-    try {
-      // Optimistic update
-      setTasks(
-        tasks.map((task) =>
-          task.id === id ? { ...task, ...updatedData } : task
-        )
-      );
-      await personalTasksService.updateTask(id, updatedData);
-    } catch (error) {
-      console.error("Failed to update task:", error);
-      // Reload on failure to ensure data integrity
-      fetchTasks();
-    }
-  };
-
-  const handleClearAll = async () => {
-    try {
-      await personalTasksService.clearAll();
-      setTasks([]);
-    } catch (error) {
-      console.error("Failed to clear tasks:", error);
-    }
-  };
+  // 5. Clear All
+  const clearMutation = useMutation({
+    mutationFn: () => personalTasksService.clearAll(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['personalTasks', user?.id] });
+      toast.success("Cleared all tasks");
+    },
+  });
 
   const parseDeadline = (deadlineStr?: string) => {
     if (!deadlineStr) return { date: "No Deadline", time: undefined };
@@ -122,7 +121,7 @@ const MyTasksPage = () => {
           {/* Action Buttons */}
           <div className="flex gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
             <button
-              onClick={handleClearAll}
+              onClick={() => clearMutation.mutate()}
               className="flex items-center gap-2 rounded-full border border-primary px-6 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
             >
               <Upload className="h-4 w-4" /> Clear All
@@ -168,11 +167,10 @@ const MyTasksPage = () => {
                 return (
                   <div
                     key={task.id}
-                    className={`flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl px-4 sm:px-6 py-4 transition-all hover:shadow-sm ${
-                      isOverdue
-                        ? "bg-red-500/5 border border-red-500/20"
-                        : "bg-muted"
-                    }`}
+                    className={`flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl px-4 sm:px-6 py-4 transition-all hover:shadow-sm ${isOverdue
+                      ? "bg-red-500/5 border border-red-500/20"
+                      : "bg-muted"
+                      }`}
                   >
                     {/* Top Row (Checkbox + Content) */}
                     <div className="flex items-start sm:items-center gap-4 w-full min-w-0">
@@ -181,7 +179,7 @@ const MyTasksPage = () => {
                         type="checkbox"
                         checked={task.completed}
                         onChange={() =>
-                          handleToggleTaskCompletion(task.id, task.completed)
+                          toggleMutation.mutate({ id: task.id, completed: !task.completed })
                         }
                         className="h-5 w-5 sm:h-6 sm:w-6 mt-1 sm:mt-0 shrink-0 cursor-pointer rounded border-2 border-primary accent-primary"
                       />
@@ -190,11 +188,10 @@ const MyTasksPage = () => {
                       <div className="flex-1 min-w-0">
                         {/* Date and Time */}
                         <div
-                          className={`mt-1 sm:mt-2 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs mb-2 ${
-                            isOverdue
-                              ? "text-red-500/80 font-medium"
-                              : "text-muted-foreground"
-                          }`}
+                          className={`mt-1 sm:mt-2 flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs mb-2 ${isOverdue
+                            ? "text-red-500/80 font-medium"
+                            : "text-muted-foreground"
+                            }`}
                         >
                           <span className="flex items-center gap-1.5">
                             <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />{" "}
@@ -215,13 +212,12 @@ const MyTasksPage = () => {
                         </div>
 
                         <p
-                          className={`text-sm font-medium break-words transition-all ${
-                            task.completed
-                              ? "line-through text-muted-foreground"
-                              : isOverdue
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-card-foreground"
-                          }`}
+                          className={`text-sm font-medium break-words transition-all ${task.completed
+                            ? "line-through text-muted-foreground"
+                            : isOverdue
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-card-foreground"
+                            }`}
                         >
                           {task.title}
                         </p>
@@ -231,11 +227,11 @@ const MyTasksPage = () => {
                     {/* Actions */}
                     <div className="flex items-center justify-end sm:justify-start gap-3 sm:ml-auto">
                       <button
-                        onClick={() => handleDeleteTask(task.id)}
+                        onClick={() => deleteMutation.mutate(task.id)}
                         className="rounded-full p-2 text-muted-foreground transition-colors bg-background hover:text-red-500"
                         title="Delete Task"
                       >
-                        <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <Trash2 className="h-4 w-4 sm:h-5 w-5" />
                       </button>
                       <button
                         onClick={() => {
@@ -260,7 +256,7 @@ const MyTasksPage = () => {
       <AddPersonalTaskModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onAddTask={handleAddTask}
+        onAddTask={(data: any) => createMutation.mutate(data)}
       />
 
       <EditPersonalTaskModal
@@ -270,7 +266,12 @@ const MyTasksPage = () => {
           setEditingTask(null);
         }}
         task={editingTask}
-        onEditTask={handleEditTask}
+        onEditTask={(id: string, data: any) => {
+          personalTasksService.updateTask(id, data).then(() => {
+            queryClient.invalidateQueries({ queryKey: ['personalTasks'] });
+            setIsEditModalOpen(false);
+          });
+        }}
       />
     </div>
   );

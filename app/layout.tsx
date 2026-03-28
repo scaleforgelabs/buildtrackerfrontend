@@ -17,8 +17,31 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "BuildTracker",
-  description: "Project management made simple.",
+  title: {
+    default: "BuildTracker | Project Management Made Simple",
+    template: "%s | BuildTracker"
+  },
+  description: "The most intuitive project management platform for modern teams. Track builds, manage tasks, and collaborate seamlessly.",
+  keywords: ["project management", "build tracker", "team collaboration", "task management", "productivity"],
+  authors: [{ name: "BuildTracker Team" }],
+  creator: "BuildTracker",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://buildtrackerapp.com",
+    title: "BuildTracker | Project Management Made Simple",
+    description: "The most intuitive project management platform for modern teams.",
+    siteName: "BuildTracker",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BuildTracker | Project Management Made Simple",
+    description: "The most intuitive project management platform for modern teams.",
+    creator: "@buildtracker",
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 import QueryProvider from "./providers/QueryProvider";

@@ -9,9 +9,10 @@ interface ImagePreviewModalProps {
     fileName?: string
     onClose: () => void
     onDownload?: () => void
+    isCircular?: boolean
 }
 
-const ImagePreviewModal = ({ isOpen, imageUrl, fileName, onClose, onDownload }: ImagePreviewModalProps) => {
+const ImagePreviewModal = ({ isOpen, imageUrl, fileName, onClose, onDownload, isCircular }: ImagePreviewModalProps) => {
     useEffect(() => {
         if (!isOpen) return
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -57,7 +58,10 @@ const ImagePreviewModal = ({ isOpen, imageUrl, fileName, onClose, onDownload }: 
                 <img
                     src={imageUrl}
                     alt={fileName || 'Image preview'}
-                    className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+                    className={`max-w-full max-h-[85vh] shadow-2xl ${isCircular
+                            ? "rounded-full aspect-square object-cover border-4 border-white/20 w-80 sm:w-[400px]"
+                            : "rounded-xl object-contain"
+                        }`}
                 />
 
                 {/* File name */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import {
   ChevronDown,
@@ -87,11 +88,12 @@ export default function Sidebar() {
             <div className="flex items-center justify-between mb-6">
               <button
                 onClick={() => setCollapsed((v) => !v)}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                 className={`flex items-center ${collapsed ? "justify-center" : "gap-2"} flex-1`}
               >
                 <Image
                   src={Images.logo}
-                  alt="Logo"
+                  alt="BuildTracker Logo"
                   priority
                   className="w-8 h-8"
                 />
@@ -103,9 +105,10 @@ export default function Sidebar() {
               </button>
               <button
                 onClick={() => setMobileOpen(false)}
+                aria-label="Close mobile menu"
                 className="lg:hidden p-1"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 
@@ -114,6 +117,8 @@ export default function Sidebar() {
               <div className="mb-6 rounded-xl border border-sidebar-border bg-card overflow-hidden">
                 <button
                   onClick={() => setWorkspaceOpen((v) => !v)}
+                  aria-label="Switch workspace"
+                  aria-expanded={workspaceOpen}
                   className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-sidebar-accent"
                 >
                   {currentWorkspace ? (
@@ -135,6 +140,7 @@ export default function Sidebar() {
                   <ChevronDown
                     className={`w-4 h-4 text-muted-foreground transition-transform ${workspaceOpen ? "rotate-180" : ""
                       }`}
+                    aria-hidden="true"
                   />
                 </button>
 
@@ -148,8 +154,8 @@ export default function Sidebar() {
                           setWorkspaceOpen(false);
                         }}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-sidebar-accent ${currentWorkspace?.id === ws.id
-                            ? "bg-sidebar-accent"
-                            : ""
+                          ? "bg-sidebar-accent"
+                          : ""
                           }`}
                       >
                         <div className="w-2 h-2 rounded-full bg-primary" />
@@ -211,18 +217,10 @@ export default function Sidebar() {
                     (item.global && pathname.startsWith(item.link));
 
                   return (
-                    <button
+                    <Link
                       key={item.label}
-                      onClick={() => {
-                        if (item.global) {
-                          router.push(workspaceBasedLink);
-                        } else if (currentWorkspace) {
-                          router.push(workspaceBasedLink);
-                        } else {
-                          router.push(workspaceBasedLink);
-                        }
-                        setMobileOpen(false);
-                      }}
+                      href={workspaceBasedLink}
+                      onClick={() => setMobileOpen(false)}
                       className={`w-full flex items-center rounded-xl transition-colors ${collapsed ? "justify-center p-2" : "gap-3 px-3 py-2"
                         } ${isActive
                           ? "font-semibold text-foreground bg-secondary"
@@ -237,7 +235,7 @@ export default function Sidebar() {
                       {!collapsed && (
                         <span className="text-sm">{item.label}</span>
                       )}
-                    </button>
+                    </Link>
                   );
                 });
               })()}

@@ -4,6 +4,25 @@ import { StaticImageData } from "next/image";
 export type TaskStatus = "Pending" | "In Progress" | "Completed";
 export type TaskPriority = "High" | "Medium" | "Low";
 
+export interface TaskData {
+    id: string;
+    ticket_number: number;
+    task_name: string;
+    status: string;
+    priority: string;
+    assigned_user: {
+        first_name: string;
+        last_name: string;
+        email: string;
+        avatar?: string;
+    };
+    start_date: string;
+    end_date: string;
+    comments: any[];
+    attachments: any[];
+    has_blocker?: boolean;
+}
+
 export interface Task {
     id: string;
     ticketNo: string;

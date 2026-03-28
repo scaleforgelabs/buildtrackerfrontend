@@ -7,7 +7,12 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
-import EmojiPicker from 'emoji-picker-react'
+import dynamic from 'next/dynamic'
+
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
+    ssr: false,
+    loading: () => <div className="h-[400px] w-[300px] bg-gray-100 animate-pulse flex items-center justify-center rounded-lg text-gray-400 text-xs">Loading Emojis...</div>
+})
 import {
     Bold,
     Italic,
