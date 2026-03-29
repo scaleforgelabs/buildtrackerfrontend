@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, use } from 'react'
-import { getFileIcon } from '@/libs/utils'
+import { getFileIcon, triggerAuthenticatedDownload } from '@/libs/utils'
 import {
     ArrowLeft,
     Calendar,
@@ -87,7 +87,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Image Preview State
-    const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null)
+    const [previewImage, setPreviewImage] = useState<{ url: string; name: string; id: string; isComment?: boolean } | null>(null)
 
     // Blockers State
     const [hasBlocker, setHasBlocker] = useState(false)
@@ -165,22 +165,17 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
         }, 300)
     }
 
-    const handleDownload = async (url: string, filename: string) => {
+    const handleDownload = async (attachmentId: string, filename: string, isComment: boolean = false) => {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const url = isComment 
+            ? `${baseUrl}/tasks/${workspaceId}/tasks/comments/attachments/${attachmentId}/download/`
+            : `${baseUrl}/tasks/${workspaceId}/tasks/attachments/${attachmentId}/download/`;
+        
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Network response was not ok');
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = filename || 'download';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
+            await triggerAuthenticatedDownload(url, filename);
         } catch (error) {
-            console.error("Download failed, opening in new tab", error);
-            window.open(url, '_blank');
+            console.error("Download failed", error);
+            toast.error("Failed to download file.");
         }
     };
 
@@ -381,7 +376,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                     <div key={attachment.id || index} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 hover:bg-gray-50 transition-colors">
                                         <div className="flex h-10 w-10 items-center justify-center shrink-0">
                                             {isImage ? (
-                                                <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image' })} className="cursor-pointer">
+                                                <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image', id: attachment.id })} className="cursor-pointer">
                                                     <img src={fileUrl} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100 hover:ring-2 hover:ring-primary/40 transition-all" />
                                                 </button>
                                             ) : (
@@ -391,7 +386,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                         <div className="flex-1 overflow-hidden">
                                             <p className={`truncate text-sm font-medium text-gray-900 ${isImage ? 'cursor-pointer hover:text-primary' : ''}`}
                                                 title={attachment.file_name}
-                                                onClick={() => isImage && setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image' })}
+                                                onClick={() => isImage && setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image', id: attachment.id })}
                                             >
                                                 {attachment.file_name || attachment.file?.split('/').pop() || 'Attachment'}
                                             </p>
@@ -400,11 +395,11 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                                 <span className="w-1 h-1 rounded-full bg-gray-300"></span>
                                                 {isImage && (
                                                     <>
-                                                        <button onClick={() => setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image' })} className="font-medium text-primary hover:underline transition-all">Preview</button>
+                                                        <button onClick={() => setPreviewImage({ url: fileUrl, name: attachment.file_name || 'Image', id: attachment.id })} className="font-medium text-primary hover:underline transition-all">Preview</button>
                                                         <span className="w-1 h-1 rounded-full bg-gray-300"></span>
                                                     </>
                                                 )}
-                                                <button onClick={() => handleDownload(fileUrl, attachment.file_name || 'download')} className="font-medium text-primary hover:underline transition-all">Download</button>
+                                                <button onClick={() => handleDownload(attachment.id, attachment.file_name || 'download')} className="font-medium text-primary hover:underline transition-all">Download</button>
                                             </div>
                                         </div>
                                     </div>
@@ -541,7 +536,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                                                 const isImage = fileUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i);
                                                                 if (isImage) {
                                                                     return (
-                                                                        <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: att.file_name || 'Image' })} key={att.id} className="block w-full max-w-md overflow-hidden rounded-xl border-[4px] border-black hover:opacity-90 transition-opacity cursor-pointer">
+                                                                        <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: att.file_name || 'Image', id: att.id, isComment: true })} key={att.id} className="block w-full max-w-md overflow-hidden rounded-xl border-[4px] border-black hover:opacity-90 transition-opacity cursor-pointer">
                                                                             <img src={fileUrl} alt={att.file_name || 'Attachment'} className="h-auto w-full object-cover max-h-80" />
                                                                         </button>
                                                                     )
@@ -549,7 +544,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                                                                 return (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => handleDownload(fileUrl, att.file_name || 'download')}
+                                                                        onClick={() => handleDownload(att.id, att.file_name || 'download', true)}
                                                                         key={att.id}
                                                                         className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 hover:bg-gray-50 transition-colors shadow-sm min-w-[240px] max-w-sm text-left"
                                                                     >
@@ -678,7 +673,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string, taskId: str
                 imageUrl={previewImage?.url || ''}
                 fileName={previewImage?.name}
                 onClose={() => setPreviewImage(null)}
-                onDownload={previewImage ? () => handleDownload(previewImage.url, previewImage.name) : undefined}
+                onDownload={previewImage ? () => handleDownload(previewImage.id, previewImage.name, previewImage.isComment) : undefined}
             />
         </div>
     )

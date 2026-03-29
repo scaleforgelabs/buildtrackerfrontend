@@ -7,7 +7,7 @@ import Image, { StaticImageData } from "next/image";
 import { Check, Loader2 } from "lucide-react";
 import { Images } from "@/public";
 import Link from "next/link";
-import { notificationsService } from "@/libs/api/services";
+import { notificationsService, workspacesService } from "@/libs/api/services";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import UserAvatar from "@/app/components/ui/UserAvatar";
 import { 
@@ -63,6 +63,20 @@ export default function NotificationsPage() {
     return date.toLocaleDateString();
   };
 
+  const { data: membersRes } = useQuery({
+    queryKey: ['workspaceMembers', currentWorkspace?.id],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return [];
+      const response = await workspacesService.getMembers(wsId);
+      return response.data?.data || response.data?.results?.data || [];
+    },
+    enabled: !!currentWorkspace?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const workspaceMembers = membersRes || [];
+
   const transformApiData = (apiNotifications: any[]): NotificationItem[] => {
     return apiNotifications.map((notification) => {
       const workspace = workspaces.find((ws: { id: string; name: string }) => ws.id === notification.workspace);
@@ -79,11 +93,49 @@ export default function NotificationsPage() {
         return str.replace(/<[^>]*>?/gm, "");
       };
 
+      let parsedName = workspaceName || "BuildTracker";
+      let fallbackAvatar: string | undefined = undefined;
+
+      if (notification.description && typeof notification.description === 'string' && notification.description.includes(" by ")) {
+        const match = notification.description.match(/by (.+)$/);
+        if (match) parsedName = match[1].replace(/["']/g, "").trim();
+      } else if (notification.action && typeof notification.action === 'string') {
+        if (notification.action.includes(" assigned you to")) {
+          parsedName = notification.action.split(" assigned ")[0];
+        } else if (notification.action.includes(" commented on")) {
+          parsedName = notification.action.split(" commented ")[0];
+        } else if (notification.action.includes(" updated ")) {
+          parsedName = notification.action.split(" updated ")[0];
+        } else if (notification.action.includes(" set a blocker")) {
+          parsedName = notification.action.split(" set ")[0];
+        } else if (notification.action.includes(" cleared blocker")) {
+          parsedName = notification.action.split(" cleared ")[0];
+        }
+      }
+
+      if (!notification.triggered_by_avatar && parsedName !== workspaceName && parsedName !== "BuildTracker") {
+        const nameParts = parsedName.toLowerCase().split(' ');
+        const matchingMember = workspaceMembers.find((member: any) => {
+           const first = (member.user?.first_name || '').toLowerCase();
+           const last = (member.user?.last_name || '').toLowerCase();
+           return nameParts.some((part: string) => part.length >= 2 && (first.includes(part) || last.includes(part)));
+        });
+        if (matchingMember && matchingMember.user?.avatar) {
+           fallbackAvatar = matchingMember.user.avatar;
+        }
+      }
+
+      // If it couldn't parse any name from the text and it lacks an explicit avatar (system/old notification),
+      // we can gracefully show a neutral icon instead of forcing random letters.
+      if (!notification.triggered_by_avatar && !fallbackAvatar && (parsedName === workspaceName || parsedName === "BuildTracker")) {
+          fallbackAvatar = Images.logo as unknown as string;
+      }
+
       return {
         id: notification.id,
-        user: notification.user_name || "User",
+        user: notification.triggered_by_name || parsedName,
         userId: notification.user,
-        avatar: notification.user_avatar || "",
+        avatar: notification.triggered_by_avatar || fallbackAvatar || "",
         action: notification.action.split(":")[0] || notification.action,
         target: notification.action.split(":")[1]?.trim() || notification.description || "Task",
         context: notification.note_type === "task_assigned" || notification.note_type === "deadline_approaching" ? "Tasks" : notification.note_type?.includes("wiki") ? "to Wiki" : notification.note_type?.includes("link") ? "to Quick Links" : "Tasks",
