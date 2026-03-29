@@ -9,12 +9,14 @@ import {
   RefreshCw,
   UserPlus,
 } from "lucide-react";
-import Image from "next/image";
+import NextImage from "next/image";
 import { Images } from "@/public";
 import UserAvatar from "@/app/components/ui/UserAvatar";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
+import { api } from "@/libs/api";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
-import { useEffect, useState } from "react";
-import api from "@/libs/api";
 
 interface Log {
   id: string;
@@ -74,33 +76,27 @@ const formatDate = (dateString: string) => {
 
 export default function ActivityLogsPage() {
   const { currentWorkspace } = useWorkspace();
-  const [logs, setLogs] = useState<Log[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  const pathname = usePathname();
+  const isRouteActive = pathname.includes('/activity-logs');
+
+  const { data: logsRes, isLoading: loading } = useQuery({
+    queryKey: ['activityLogs', currentWorkspace?.id],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
+      return api.get(`/logs/workspaces/${wsId}/logs/detailed`);
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const logs: Log[] = (logsRes as any)?.data?.results?.data || (logsRes as any)?.data?.data || (logsRes as any)?.data || [];
+
   const totalPages = Math.ceil(logs.length / itemsPerPage) || 1;
   const paginatedLogs = logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-
-    const fetchLogs = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get(
-          `/logs/workspaces/${currentWorkspace.id}/logs/detailed`,
-        );
-        setLogs(response.data.data || []);
-      } catch (error) {
-        console.error("Failed to fetch logs:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLogs();
-  }, [currentWorkspace?.id]);
 
   return (
     <div className="container mx-auto p-4 md:p-6">

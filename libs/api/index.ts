@@ -9,10 +9,15 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  // Centralized Cache-Buster Removal: 
+  // Automatically strip manual `_t` parameters to enable proper React Query/Browser caching
+  if (config.params && '_t' in config.params) {
+    const { _t, ...rest } = config.params;
+    config.params = rest;
+  }
+
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem("access_token");
-    console.log('🔑 API Request:', config.method?.toUpperCase(), config.url);
-    console.log('🔑 Token exists:', !!token);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,56 +28,72 @@ api.interceptors.request.use((config) => {
     if (config.headers) {
       delete config.headers['Content-Type'];
       delete config.headers['content-type'];
-      if (config.headers.post) {
-        delete config.headers.post['Content-Type'];
-        delete config.headers.post['content-type'];
-      }
-      if (config.headers.put) {
-        delete config.headers.put['Content-Type'];
-        delete config.headers.put['content-type'];
-      }
-      if (typeof config.headers.delete === 'function') {
-        config.headers.delete('Content-Type');
-        config.headers.delete('content-type');
-      }
     }
   }
 
   return config;
 });
 
+// Refresh Token Queue Logic
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
-  (response) => {
-    console.log('✅ API Response:', response.status, response.config.url);
-    return response;
-  },
+  (response) => response,
   async (error) => {
-    console.error('❌ API Error:', error.response?.status, error.config?.url, error.message);
-    console.error('❌ Error Details:', error.response?.data);
     const originalRequest = error.config;
+
     if (error.response?.status === 401 && !originalRequest._retry && typeof window !== 'undefined') {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
+
       const refresh = localStorage.getItem("refresh_token");
       if (refresh) {
         try {
           const res = await axios.post(
             `${process.env.NEXT_PUBLIC_API_URL || "https://api.buildtrackerapp.com/api"}/auth/refresh-token/`,
-            {
-              refresh_token: refresh,
-            }
+            { refresh_token: refresh }
           );
-          localStorage.setItem("access_token", res.data.token);
-          localStorage.setItem("refresh_token", res.data.refresh_token);
-          originalRequest.headers.Authorization = `Bearer ${res.data.token}`;
+
+          const newToken = res.data.token;
+          const newRefreshToken = res.data.refresh_token;
+
+          localStorage.setItem("access_token", newToken);
+          localStorage.setItem("refresh_token", newRefreshToken);
+
+          processQueue(null, newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return api(originalRequest);
         } catch (err) {
+          processQueue(err, null);
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
-          console.log(err);
-          // Redirect to login
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
+          window.location.href = '/login';
+          return Promise.reject(err);
+        } finally {
+          isRefreshing = false;
         }
       }
     }

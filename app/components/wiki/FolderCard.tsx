@@ -1,11 +1,12 @@
 import Image from "next/image";
-import { MoreVertical, Edit2 } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { Images } from "@/public"
 import { useState, useEffect } from "react";
 import { filesService } from "@/libs/api/services";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import UserAvatar from "../ui/UserAvatar";
 import { cn } from "@/libs/utils";
+import { Download, Edit2, Trash2 } from "lucide-react";
 
 type FolderCardProps = {
   folderId: string;
@@ -20,6 +21,8 @@ type FolderCardProps = {
   onContextMenu?: (e: React.MouseEvent) => void;
   onRename?: (newName: string) => void;
   onRenameSuccess?: () => void;
+  onDownload?: () => void;
+  onDelete?: () => void;
   canEdit?: boolean;
 };
 
@@ -36,11 +39,14 @@ export function FolderCard({
   onContextMenu,
   onRename,
   onRenameSuccess,
+  onDownload,
+  onDelete,
   canEdit = true,
 }: FolderCardProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [newName, setNewName] = useState(title);
+  const [showDropdown, setShowDropdown] = useState(false);
   const { currentWorkspace } = useWorkspace();
 
   useEffect(() => {
@@ -141,9 +147,54 @@ export function FolderCard({
           >
             <Edit2 className="h-4 w-4 text-muted-foreground" />
           </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted">
-            <MoreVertical className="h-4 w-4 text-muted-foreground" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowDropdown(!showDropdown); }}
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-muted",
+                showDropdown && "bg-muted"
+              )}
+            >
+              <MoreVertical className="h-4 w-4 text-muted-foreground" />
+            </button>
+
+            {showDropdown && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowDropdown(false)}
+                />
+                <div className="absolute right-0 mt-2 w-48 rounded-xl border bg-card shadow-2xl py-1 z-50 animate-in fade-in zoom-in duration-100">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDownload?.(); setShowDropdown(false); }}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-foreground"
+                  >
+                    <Download size={16} className="text-muted-foreground" />
+                    Download (.zip)
+                  </button>
+                  {canEdit && (
+                    <>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setIsRenaming(true); setShowDropdown(false); }}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-foreground"
+                      >
+                        <Edit2 size={16} className="text-muted-foreground" />
+                        Rename
+                      </button>
+                      <div className="h-px bg-border my-1" />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete?.(); setShowDropdown(false); }}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -188,9 +239,54 @@ export function FolderCard({
             >
               <Edit2 className="h-4 w-4 text-muted-foreground" />
             </button>
-            <button className="flex h-8 w-8 items-center justify-center rounded-full border bg-card/50 hover:bg-card/80 transition-colors shadow-sm">
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDropdown(!showDropdown); }}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full border bg-card/50 hover:bg-card/80 transition-colors shadow-sm",
+                  showDropdown && "bg-card/80"
+                )}
+              >
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              {showDropdown && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowDropdown(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl border bg-card shadow-2xl py-1 z-50 animate-in fade-in zoom-in duration-100">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDownload?.(); setShowDropdown(false); }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-foreground"
+                    >
+                      <Download size={16} className="text-muted-foreground" />
+                      Download (.zip)
+                    </button>
+                    {canEdit && (
+                      <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setIsRenaming(true); setShowDropdown(false); }}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition-colors text-foreground"
+                        >
+                          <Edit2 size={16} className="text-muted-foreground" />
+                          Rename
+                        </button>
+                        <div className="h-px bg-border my-1" />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete?.(); setShowDropdown(false); }}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

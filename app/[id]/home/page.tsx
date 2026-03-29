@@ -17,25 +17,27 @@ import {
   History,
 } from "lucide-react";
 
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import dynamic from "next/dynamic";
+const LineChart = dynamic(() => import("recharts").then(mod => mod.LineChart), { ssr: false });
+const Line = dynamic(() => import("recharts").then(mod => mod.Line), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then(mod => mod.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then(mod => mod.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then(mod => mod.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then(mod => mod.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then(mod => mod.ResponsiveContainer), { ssr: false });
+const AreaChart = dynamic(() => import("recharts").then(mod => mod.AreaChart), { ssr: false });
+const Area = dynamic(() => import("recharts").then(mod => mod.Area), { ssr: false });
+const RechartsPieChart = dynamic(() => import("recharts").then(mod => mod.PieChart), { ssr: false });
+const Pie = dynamic(() => import("recharts").then(mod => mod.Pie), { ssr: false });
+const Cell = dynamic(() => import("recharts").then(mod => mod.Cell), { ssr: false });
 import { format, subDays, subMonths } from "date-fns";
 import { Images } from "@/public";
 import UserAvatar from "@/app/components/ui/UserAvatar";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
-import api from "@/libs/api";
+import { AnalyticsService } from "@/app/services/analytics";
+import { tasksService } from "@/libs/api/services";
+import { useQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 
 interface DashboardStats {
   totalTasks: number;
@@ -77,7 +79,7 @@ interface Task {
 
 function DashboardSkeleton() {
   return (
-    <section className="bg-muted w-full rounded-2xl animate-pulse">
+    <main className="bg-muted w-full rounded-2xl animate-pulse">
       <div className="bg-muted rounded-2xl p-4 lg:p-6 space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
@@ -112,81 +114,91 @@ function DashboardSkeleton() {
           <div className="bg-gray-200 dark:bg-gray-800 rounded-2xl p-4 h-64 min-w-0"></div>
         </div>
       </div>
-    </section>
+    </main>
   );
 }
 
 export default function DashboardSection() {
   const { currentWorkspace } = useWorkspace();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [chartData, setChartData] = useState<ChartData | null>(null);
-  const [trendData, setTrendData] = useState<TrendData | null>(null);
-  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState<"7d" | "30d" | "3m" | "all">("7d");
+  const pathname = usePathname();
+  const isRouteActive = pathname.endsWith('/home') || pathname.match(/\/[a-zA-Z0-9-]+\/?$/) !== null;
 
-  const fetchDashboardData = async () => {
-    if (!currentWorkspace?.id) return;
-
-    try {
-      setLoading(true);
-
+  // 1. Fetch Stats
+  const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useQuery({
+    queryKey: ['dashboardStats', currentWorkspace?.id, timeFilter],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
       const today = new Date();
       let dateFrom: string | undefined = undefined;
-      let dateTo: string = format(today, 'yyyy-MM-dd');
+      const dateTo: string = format(today, 'yyyy-MM-dd');
+      if (timeFilter === "7d") dateFrom = format(subDays(today, 7), 'yyyy-MM-dd');
+      else if (timeFilter === "30d") dateFrom = format(subDays(today, 30), 'yyyy-MM-dd');
+      else if (timeFilter === "3m") dateFrom = format(subMonths(today, 3), 'yyyy-MM-dd');
+      return AnalyticsService.getDashboardStats(wsId, { DateFrom: dateFrom, DateTo: dateTo });
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // 2. Fetch Charts
+  const { data: chartData, isLoading: loadingCharts, refetch: refetchCharts } = useQuery({
+    queryKey: ['dashboardCharts', currentWorkspace?.id, timeFilter],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
       let period: 'weekly' | 'monthly' | 'quarterly' | 'yearly' = 'weekly';
+      if (timeFilter === "30d") period = "monthly";
+      else if (timeFilter === "3m") period = "quarterly";
+      else if (timeFilter === "all") period = "yearly";
+      return AnalyticsService.getDashboardCharts(wsId, { Period: period });
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
 
-      switch (timeFilter) {
-        case "7d":
-          dateFrom = format(subDays(today, 7), 'yyyy-MM-dd');
-          period = "weekly";
-          break;
-        case "30d":
-          dateFrom = format(subDays(today, 30), 'yyyy-MM-dd');
-          period = "monthly";
-          break;
-        case "3m":
-          dateFrom = format(subMonths(today, 3), 'yyyy-MM-dd');
-          period = "quarterly";
-          break;
-        case "all":
-          dateFrom = undefined;
-          period = "yearly";
-          break;
-      }
+  // 3. Fetch Trends
+  const { data: trendData, isLoading: loadingTrends, refetch: refetchTrends } = useQuery({
+    queryKey: ['dashboardTrends', currentWorkspace?.id, timeFilter],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
+      const today = new Date();
+      let dateFrom: string | undefined = undefined;
+      const dateTo: string = format(today, 'yyyy-MM-dd');
+      if (timeFilter === "7d") dateFrom = format(subDays(today, 7), 'yyyy-MM-dd');
+      else if (timeFilter === "30d") dateFrom = format(subDays(today, 30), 'yyyy-MM-dd');
+      else if (timeFilter === "3m") dateFrom = format(subMonths(today, 3), 'yyyy-MM-dd');
+      return AnalyticsService.getTrends(wsId, { DateFrom: dateFrom, DateTo: dateTo });
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
 
-      const params = { DateFrom: dateFrom, DateTo: dateTo };
-      const chartParams = { Period: period };
+  // 4. Fetch Recent Tasks
+  const { data: recentTasksRes, isLoading: loadingTasks, refetch: refetchTasks } = useQuery({
+    queryKey: ['recentTasks', currentWorkspace?.id],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
+      return tasksService.getTasksByWorkspace(wsId, { PageSize: 5 });
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 2 * 60 * 1000,
+  });
 
-      const [statsRes, chartsRes, trendsRes, tasksRes] = await Promise.all([
-        api.get(`/analytics/workspaces/${currentWorkspace.id}/dashboard/stats`, { params: { ...params, _t: Date.now() } }),
-        api.get(`/analytics/workspaces/${currentWorkspace.id}/dashboard/charts`, { params: { ...chartParams, _t: Date.now() } }),
-        api.get(`/analytics/workspaces/${currentWorkspace.id}/analytics/trends`, { params: { ...params, _t: Date.now() } }),
-        api.get(`/tasks/${currentWorkspace.id}/tasks/`, { params: { ...params, _t: Date.now() } }),
-      ]);
+  const recentTasks: Task[] = (recentTasksRes as any)?.data?.results?.data || (recentTasksRes as any)?.data || [];
+  const loading = loadingStats || loadingCharts || loadingTrends || loadingTasks;
 
-      setStats(statsRes.data);
-      setChartData(chartsRes.data);
-      setTrendData(trendsRes.data);
+  const actualTrendData = (trendData as any)?.data || trendData;
+  const actualChartData = (chartData as any)?.data || chartData;
+  const actualStats = (stats as any)?.data || stats;
 
-      const tasksData = tasksRes.data?.results?.data || tasksRes.data?.results || tasksRes.data?.data || tasksRes.data || [];
-      const tasksArray = Array.isArray(tasksData) ? tasksData : [];
-      setRecentTasks(tasksArray.slice(0, 5));
-    } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [currentWorkspace?.id, timeFilter]);
-
-  const performanceData = trendData?.completionTrend?.map((item, idx) => {
+  const performanceData = actualTrendData?.completionTrend?.map((item: any, idx: number) => {
     const dateObj = new Date(item.date);
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const inProgress = trendData?.velocityTrend?.[idx]?.value || 0;
+    const inProgress = actualTrendData?.velocityTrend?.[idx]?.value || 0;
     return {
       date: dayNames[dateObj.getDay()],
       completed: item.value,
@@ -194,23 +206,38 @@ export default function DashboardSection() {
     };
   }) || [];
 
-  const statusChartData = chartData?.statusData?.map((item) => ({
-    name: item.label.charAt(0).toUpperCase() + item.label.slice(1),
-    value: item.value,
-    color: item.label === "pending" ? "#3b82f6" : item.label === "in_progress" ? "#f59e0b" : "#10b981",
-  })) || [];
+  const statusChartData = actualChartData?.statusData?.map((item: any) => {
+    const label = item.label.toLowerCase().replace(/_/g, ' ');
+    // MAPPING: Sync with Performance Trend (Completed: Green, In Progress: Blue, Pending: Amber)
+    let color = "#f59e0b"; // Default Amber (Pending)
 
-  const priorityDistribution = chartData?.priorityData || [];
-  const highPriority = priorityDistribution.find((p) => p.label === "high")?.value || 0;
-  const mediumPriority = priorityDistribution.find((p) => p.label === "medium")?.value || 0;
-  const lowPriority = priorityDistribution.find((p) => p.label === "low")?.value || 0;
+    if (label.includes("complete") || label.includes("done") || label.includes("success")) {
+      color = "#22c55e";
+    } else if (label.includes("progress") || label.includes("doing") || label.includes("active")) {
+      color = "#3b82f6";
+    } else if (label.includes("pending") || label.includes("todo") || label.includes("hold")) {
+      color = "#f59e0b";
+    }
+
+    return {
+      name: label.split(' ').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
+      value: item.value,
+      fill: color, // Add fill directly for Pie
+      color: color, // Keep color for other components
+    };
+  }) || [];
+
+  const priorityDistribution = actualChartData?.priorityData || [];
+  const highPriority = priorityDistribution.find((p: any) => p.label === "high")?.value || 0;
+  const mediumPriority = priorityDistribution.find((p: any) => p.label === "medium")?.value || 0;
+  const lowPriority = priorityDistribution.find((p: any) => p.label === "low")?.value || 0;
   const totalPriority = highPriority + mediumPriority + lowPriority || 1;
 
   const highPercent = Math.round((highPriority / totalPriority) * 100);
   const mediumPercent = Math.round((mediumPriority / totalPriority) * 100);
   const lowPercent = Math.round((lowPriority / totalPriority) * 100);
 
-  const healthScore = stats?.healthScore || 0;
+  const healthScore = actualStats?.healthScore || 0;
 
   const handleExportReports = () => {
     if (!stats || !chartData) return;
@@ -220,16 +247,16 @@ export default function DashboardSection() {
 
     // Create CSV Rows for Overall Stats
     const rows = [
-      ["Total Tasks", stats.totalTasks.toString(), "", "", "", "", ""],
-      ["Completed Tasks", stats.completedTasks.toString(), "", "", "", "", ""],
-      ["In Progress", stats.inProgressTasks.toString(), "", "", "", "", ""],
-      ["Overdue Tasks", stats.overdueTasks.toString(), "", "", "", "", ""],
+      ["Total Tasks", actualStats.totalTasks.toString(), "", "", "", "", ""],
+      ["Completed Tasks", actualStats.completedTasks.toString(), "", "", "", "", ""],
+      ["In Progress", actualStats.inProgressTasks.toString(), "", "", "", "", ""],
+      ["Overdue Tasks", actualStats.overdueTasks.toString(), "", "", "", "", ""],
       ["Health Score (%)", healthScore.toString(), "", "", "", "", ""],
       ["", "", "", "", "", "", ""], // Empty row separator
     ];
 
     // Add Member Performance rows side-by-side if available
-    chartData.memberPerformance?.forEach((member, index) => {
+    actualChartData.memberPerformance?.forEach((member: any, index: number) => {
       if (rows[index]) {
         rows[index][3] = member.member_name.replace(/,/g, '');
         rows[index][4] = member.tasks_completed.toString();
@@ -262,7 +289,7 @@ export default function DashboardSection() {
   }
 
   return (
-    <section className="bg-muted w-full rounded-2xl">
+    <main className="bg-muted w-full rounded-2xl">
       <div className="bg-muted rounded-2xl p-4 lg:p-6 space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -276,7 +303,9 @@ export default function DashboardSection() {
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
+              <label htmlFor="time-filter" className="sr-only">Filter by time period</label>
               <select
+                id="time-filter"
                 value={timeFilter}
                 onChange={(e) => setTimeFilter(e.target.value as any)}
                 className="appearance-none rounded-lg border border-primary text-primary px-3 py-1.5 pr-8 text-sm bg-background font-medium hover:bg-blue-50 transition-colors focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
@@ -286,22 +315,29 @@ export default function DashboardSection() {
                 <option value="3m">Last 3 months</option>
                 <option value="all">All Time</option>
               </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" aria-hidden="true" />
             </div>
 
             <button
-              onClick={() => fetchDashboardData()}
+              onClick={() => {
+                refetchStats();
+                refetchCharts();
+                refetchTrends();
+                refetchTasks();
+              }}
+              aria-label="Reload dashboard data"
               className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-sm bg-background hover:bg-muted font-medium transition-colors"
             >
-              <RefreshCcw className="w-4 h-4" /> Reload
+              <RefreshCcw className="w-4 h-4" aria-hidden="true" /> Reload
             </button>
 
             {(currentWorkspace?.user_role === 'Owner' || currentWorkspace?.user_role === 'Admin') && (
               <button
                 onClick={handleExportReports}
+                aria-label="Export report as CSV"
                 className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-sm hover:bg-primary/90 font-medium transition-colors shadow-sm"
               >
-                <Download className="w-4 h-4" /> Export
+                <Download className="w-4 h-4" aria-hidden="true" /> Export
               </button>
             )}
           </div>
@@ -368,13 +404,16 @@ export default function DashboardSection() {
                 <History className="w-5 h-5 text-primary" />
                 Recent Task
               </h3>
-              <button className="flex items-center gap-1 text-sm text-primary border border-primary rounded-full px-3 py-1">
-                <Plus className="w-4 h-4" /> New Task
+              <button
+                aria-label="Create new task"
+                className="flex items-center gap-1 text-sm text-primary border border-primary rounded-full px-3 py-1"
+              >
+                <Plus className="w-4 h-4" aria-hidden="true" /> New Task
               </button>
             </div>
 
             {recentTasks.length > 0 ? (
-              recentTasks.map((task) => (
+              recentTasks.map((task: any) => (
                 <TaskRow
                   key={task.id}
                   name={task.assigned_user?.first_name || "Unassigned"}
@@ -393,10 +432,10 @@ export default function DashboardSection() {
               <VectorSquare className="w-5 h-5 text-primary" /> Priority Distribution
             </h3>
 
-            <div className="flex h-6 overflow-hidden mb-6">
-              <div className="bg-red-500 w-[20%] rounded-r-md" style={{ width: `${highPercent}%` }} />
-              <div className="bg-yellow-500 w-[30%] rounded-r-md" style={{ width: `${mediumPercent}%` }} />
-              <div className="bg-green-500 w-[50%] rounded-r-md" style={{ width: `${lowPercent}%` }} />
+            <div className="flex h-6 overflow-hidden mb-6 bg-slate-100 dark:bg-slate-800 rounded-md">
+              <div className="bg-[#ef4444] rounded-r-sm transition-all duration-500" style={{ width: `${highPercent}%` }} title={`High: ${highPercent}%`} />
+              <div className="bg-[#f59e0b] rounded-r-sm transition-all duration-500" style={{ width: `${mediumPercent}%` }} title={`Medium: ${mediumPercent}%`} />
+              <div className="bg-[#22c55e] rounded-sm transition-all duration-500" style={{ width: `${lowPercent}%` }} title={`Low: ${lowPercent}%`} />
             </div>
 
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -404,25 +443,25 @@ export default function DashboardSection() {
                 label="High"
                 value={String(highPriority)}
                 percentage={`(${highPercent}%)`}
-                color="text-red-500"
+                color="#ef4444"
               />
               <Priority
                 label="Medium"
                 value={String(mediumPriority)}
                 percentage={`(${mediumPercent}%)`}
-                color="text-yellow-500"
+                color="#f59e0b"
               />
               <Priority
                 label="Low"
                 value={String(lowPriority)}
                 percentage={`(${lowPercent}%)`}
-                color="text-green-500"
+                color="#22c55e"
               />
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </main>
   );
 }
 
@@ -445,11 +484,16 @@ function TaskRow({ name, task, status, user }: { name: string; task: string; sta
   const getStatusStyles = (status: string) => {
     switch (status) {
       case "Completed":
+      case "Done":
         return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20";
-      case "Pending":
-        return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20";
       case "In Progress":
+      case "Doing":
+        return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20";
+      case "Pending":
+      case "To Do":
         return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20";
+      case "Blocked":
+        return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20";
       default:
         return "bg-muted text-muted-foreground border-border";
     }
@@ -476,9 +520,13 @@ function PerformanceLineChart({ data }: { data: any[] }) {
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data}>
         <defs>
-          <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+          <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
+            <stop offset="95%" stopColor="#22c55e" stopOpacity={0.05} />
+          </linearGradient>
+          <linearGradient id="colorInProgress" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -496,18 +544,19 @@ function PerformanceLineChart({ data }: { data: any[] }) {
         <Area
           type="monotone"
           dataKey="completed"
-          stroke="#10b981"
+          stroke="#22c55e"
           fillOpacity={1}
-          fill="url(#colorCreated)"
-          strokeWidth={2}
+          fill="url(#colorCompleted)"
+          strokeWidth={3}
           name="Completed"
         />
         <Area
           type="monotone"
           dataKey="inProgress"
-          stroke="#f59e0b"
-          fillOpacity={0.5}
-          strokeWidth={2}
+          stroke="#3b82f6"
+          fillOpacity={1}
+          fill="url(#colorInProgress)"
+          strokeWidth={3}
           name="In Progress"
         />
       </AreaChart>
@@ -551,11 +600,8 @@ function StatusDonutChart({ data }: { data: any[] }) {
             outerRadius={70}
             paddingAngle={2}
             dataKey="value"
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
+            nameKey="name"
+          />
           <Tooltip />
         </RechartsPieChart>
       </ResponsiveContainer>
@@ -565,9 +611,12 @@ function StatusDonutChart({ data }: { data: any[] }) {
 
 function Priority({ label, value, percentage, color }: { label: string; value: string; percentage: string; color: string }) {
   return (
-    <div className="rounded-xl border border-border p-2 sm:p-3 text-right flex flex-col justify-between gap-4 h-full">
+    <div className="rounded-xl border border-border p-2 sm:p-3 text-right flex flex-col justify-between gap-4 h-full bg-white/50 dark:bg-slate-900/50">
       <div className="flex items-center justify-start gap-1 mb-2">
-        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${color.replace("text-", "bg-")}`} />
+        <div
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ backgroundColor: color }}
+        />
         <span className="text-xs sm:text-sm font-medium truncate">{label}</span>
       </div>
       <div>

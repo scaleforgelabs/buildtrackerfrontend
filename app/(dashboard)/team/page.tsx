@@ -4,19 +4,34 @@ import { MoreVertical, Plus, Users, Shield, CheckCircle, UserPlus, Edit2, Trash2
 import Image from "next/image";
 import { Images } from "@/public"
 import { useState, useEffect } from "react";
-import InviteMembersModal from "@/app/components/team/modal/InviteMembersModal";
-import EditMemberModal from "@/app/components/team/modal/EditMemberModal";
-import DeleteMemberModal from "@/app/components/team/modal/DeleteMemberModal";
+import dynamic from "next/dynamic";
+const InviteMembersModal = dynamic(() => import("@/app/components/team/modal/InviteMembersModal"), { ssr: false });
+const EditMemberModal = dynamic(() => import("@/app/components/team/modal/EditMemberModal"), { ssr: false });
+const DeleteMemberModal = dynamic(() => import("@/app/components/team/modal/DeleteMemberModal"), { ssr: false });
+const DeleteConfirmationModal = dynamic(() => import("@/app/components/wiki/modal/DeleteConfirmationModal").then(mod => mod.DeleteConfirmationModal), { ssr: false });
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { organizationsService } from "@/libs/api/services";
+import { useAuth } from "@/libs/hooks/useAuth";
 
 export default function TeamManagementPage() {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { user } = useAuth();
+
+  const { data: membersRes, isLoading: membersLoading } = useQuery({
+    queryKey: ['orgMembers'],
+    queryFn: () => organizationsService.getMembers(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const members = (membersRes as any)?.data?.data || (membersRes as any)?.data || [];
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
+  if (!mounted || membersLoading) {
     return (
       <div className="p-6 space-y-6 bg-muted min-h-full">
         <div className="animate-pulse">
@@ -48,47 +63,28 @@ export default function TeamManagementPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Members" value="3" subtitle="Complete Team" icon={<Users />} />
-        <StatCard title="Admin" value="1" subtitle="Admin Access" icon={<Shield />} />
-        <StatCard title="Available" value="3" subtitle="Ready to work" icon={<CheckCircle />} />
+        <StatCard title="Total Members" value={members.length.toString()} subtitle="Complete Team" icon={<Users />} />
+        <StatCard title="Admin" value={members.filter((m: any) => m.role === 'Admin' || m.role === 'Owner').length.toString()} subtitle="Admin Access" icon={<Shield />} />
+        <StatCard title="Available" value={members.length.toString()} subtitle="Ready to work" icon={<CheckCircle />} />
         <StatCard title="Pending Invite" value="0" subtitle="Pending Invitation" icon={<UserPlus />} />
       </div>
 
       {/* Team Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <MemberCard
-          name="Muaz Balogun"
-          role="CEO/CTO"
-          access="Owner"
-          email="muazbalogun97@gmail.com"
-          phone="+234555890457"
-          avatar="https://i.pravatar.cc/150?img=32"
-          accessVariant="owner"
-        />
-        <MemberCard
-          name="Abdullah Saliu"
-          role="Product Designer"
-          access="Member"
-          email="aosoliu10@gmail.com"
-          phone="+234555890457"
-          avatar="https://i.pravatar.cc/150?img=12"
-        />
-        <MemberCard
-          name="Abdulhameed Alli‑Shittu"
-          role="Software Engineer (Frontend)"
-          access="Member"
-          email="aosoliu10@gmail.com"
-          phone="+234555890457"
-          avatar="https://i.pravatar.cc/150?img=24"
-        />
-        <MemberCard
-          name="Abdulhameed Alli‑Shittu"
-          role="Software Engineer (Backend)"
-          access="Member"
-          email="aosoliu10@gmail.com"
-          phone="+234555890457"
-          avatar="https://i.pravatar.cc/150?img=15"
-        />
+        {members.map((member: any) => (
+          <MemberCard
+            key={member.id}
+            id={member.id}
+            name={member.full_name || member.user?.full_name || "Unknown"}
+            role={member.job_role || member.role || "Member"}
+            access={member.role || "Member"}
+            email={member.email || member.user?.email || ""}
+            phone={member.phone || ""}
+            avatar={member.user?.avatar || ""}
+            accessVariant={member.role === 'Owner' ? 'owner' : 'member'}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ['orgMembers'] })}
+          />
+        ))}
       </div>
     </div>
   );
@@ -136,6 +132,7 @@ function MemberCard({
   phone,
   avatar,
   accessVariant = "member",
+  onRefresh,
 }: {
   id?: string;
   name: string;
@@ -145,6 +142,7 @@ function MemberCard({
   phone: string;
   avatar: string;
   accessVariant?: "member" | "owner";
+  onRefresh?: () => void;
 }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -158,6 +156,7 @@ function MemberCard({
         member={{ id, name, email, role, access, phone }}
         onSaved={() => {
           setIsEditModalOpen(false);
+          onRefresh?.();
         }}
       />
       <DeleteMemberModal
@@ -166,6 +165,7 @@ function MemberCard({
         member={{ id, email }}
         onDeleted={() => {
           setIsDeleteModalOpen(false);
+          onRefresh?.();
         }}
       />
       <div className="rounded-2xl bg-card shadow-sm">

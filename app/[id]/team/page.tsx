@@ -8,8 +8,11 @@ import { useState, useEffect } from "react";
 import InviteMembersModal from "@/app/components/team/modal/InviteMembersModal";
 import EditMemberModal from "@/app/components/team/modal/EditMemberModal";
 import DeleteMemberModal from "@/app/components/team/modal/DeleteMemberModal";
+import ImagePreviewModal from "@/app/components/ui/ImagePreviewModal";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import { workspacesService } from "@/libs/api/services";
+import { useQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 
 interface WorkspaceInvitation {
   id: string;
@@ -52,52 +55,52 @@ interface WorkspaceMember {
 export default function TeamManagementPage() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [members, setMembers] = useState<WorkspaceMember[]>([]);
-  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
+  const isRouteActive = pathname.includes('/team');
   const { currentWorkspace } = useWorkspace();
+
+  // Image Preview State
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (currentWorkspace?.id) {
-      fetchMembers();
-      fetchInvitations();
-    }
-  }, [currentWorkspace?.id]);
+  const { data: membersRes, isLoading: loadingMembers, refetch: refetchMembers } = useQuery({
+    queryKey: ['workspaceMembers', currentWorkspace?.id],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
+      return workspacesService.getMembers(wsId);
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const fetchMembers = async () => {
-    if (!currentWorkspace?.id) return;
+  const { data: invitationsRes, refetch: refetchInvitations } = useQuery({
+    queryKey: ['workspaceInvitations', currentWorkspace?.id],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
+      return workspacesService.getInvitations(wsId);
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
 
-    try {
-      setLoading(true);
-      const response = await workspacesService.getMembers(currentWorkspace.id);
-      setMembers(response.data.results.data);
-    } catch (error) {
-      console.error('Failed to fetch members:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const members: WorkspaceMember[] = (membersRes as any)?.data?.results?.data || [];
+  const invitations: WorkspaceInvitation[] = (invitationsRes as any)?.data?.results?.data || [];
+  const loading = loadingMembers;
 
-  const fetchInvitations = async () => {
-    if (!currentWorkspace?.id) return;
 
-    try {
-      const response = await workspacesService.getInvitations(currentWorkspace.id);
-      setInvitations(response.data.results.data);
-    } catch (error) {
-      console.error('Failed to fetch invitations:', error);
-    }
-  };
+  // Removed fetchMembers and fetchInvitations as they are now handled by useQuery
+
 
   const getStats = () => {
     const totalMembers = members.length;
-    const adminCount = members.filter(m => m.role === 'Admin' || m.role === 'Owner').length;
-    const activeCount = members.filter(m => m.user_status === 'active').length;
-    const pendingCount = invitations.filter(inv => inv.status === 'pending').length;
+    const adminCount = members.filter((m: WorkspaceMember) => m.role === 'Admin' || m.role === 'Owner').length;
+    const activeCount = members.filter((m: WorkspaceMember) => m.user_status === 'active').length;
+    const pendingCount = invitations.filter((inv: WorkspaceInvitation) => inv.status === 'pending').length;
 
     return {
       totalMembers,
@@ -126,8 +129,8 @@ export default function TeamManagementPage() {
         open={open}
         onClose={() => setOpen(false)}
         onInviteSent={() => {
-          fetchMembers();
-          fetchInvitations();
+          refetchMembers();
+          refetchInvitations();
         }}
       />
       {/* Header */}
@@ -201,7 +204,7 @@ export default function TeamManagementPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {members.map((member) => (
+          {members.map((member: WorkspaceMember) => (
             <MemberCard
               key={member.id}
               id={member.id}
@@ -220,12 +223,29 @@ export default function TeamManagementPage() {
               }}
               accessVariant={member.role === "Owner" ? "owner" : "member"}
               status={member.user_status}
-              onSaved={fetchMembers}
-              onDeleted={fetchMembers}
+              onSaved={refetchMembers}
+              onDeleted={refetchMembers}
+              onPreview={(url, name) => setPreviewImage({ url, name })}
             />
           ))}
         </div>
       )}
+
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        imageUrl={previewImage?.url || ''}
+        fileName={previewImage?.name}
+        isCircular={true}
+        onClose={() => setPreviewImage(null)}
+        onDownload={previewImage ? () => {
+          const link = document.createElement('a');
+          link.href = previewImage.url;
+          link.download = previewImage.name || 'avatar';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } : undefined}
+      />
     </div>
   );
 }
@@ -276,6 +296,7 @@ function MemberCard({
   status = "active",
   onSaved,
   onDeleted,
+  onPreview,
 }: {
   id?: string;
   userId?: string;
@@ -289,10 +310,24 @@ function MemberCard({
   status?: "active" | "inactive";
   onSaved?: () => void;
   onDeleted?: () => void;
+  onPreview?: (url: string, name: string) => void;
 }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Helper to get raw avatar URL if it exists
+  const getAvatarUrl = () => {
+    if (!user?.avatar) return null;
+    const imageSrc = user.avatar;
+    if (typeof imageSrc === 'string' && imageSrc.startsWith('/media/')) {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://api.buildtrackerapp.com';
+      return `${baseUrl}${imageSrc}`;
+    }
+    return imageSrc as string;
+  };
+
+  const avatarUrl = getAvatarUrl();
 
   return (
     <>
@@ -317,7 +352,12 @@ function MemberCard({
       <div className="rounded-2xl bg-card shadow-sm">
         <div className="p-4">
           <div className="flex items-start justify-between">
-            <UserAvatar user={user} size={80} className="w-20 h-20 rounded-xl" />
+            <UserAvatar
+              user={user}
+              size={80}
+              className="w-20 h-20 rounded-xl"
+              onClick={avatarUrl ? () => onPreview?.(avatarUrl, name) : undefined}
+            />
             <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => setMenuOpen((v) => !v)}

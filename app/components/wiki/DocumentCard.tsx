@@ -39,6 +39,8 @@ type DocumentCardProps = {
   onDownload?: () => void;
   onDelete?: () => void;
   onOpen?: () => void;
+  onSelect?: (e: React.MouseEvent) => void;
+  isSelected?: boolean;
   canEdit?: boolean;
 };
 
@@ -57,6 +59,8 @@ export function DocumentCard({
   onDownload,
   onDelete,
   onOpen,
+  onSelect,
+  isSelected = false,
   canEdit = true,
 }: DocumentCardProps) {
   const [isRenaming, setIsRenaming] = useState(false);
@@ -106,11 +110,19 @@ export function DocumentCard({
       <div
         onClick={(e) => {
           if (!isRenaming) {
+            onSelect?.(e);
+          }
+        }}
+        onDoubleClick={(e) => {
+          if (!isRenaming) {
             onOpen?.();
           }
         }}
         onContextMenu={onContextMenu}
-        className="relative h-[82px] w-full rounded-xl overflow-hidden bg-card shadow-sm border flex items-center cursor-pointer hover:bg-muted/30 transition-colors"
+        className={cn(
+          "relative h-[82px] w-full rounded-xl overflow-hidden bg-card shadow-sm border flex items-center cursor-pointer hover:bg-muted/30 transition-colors",
+          isSelected && "bg-primary/5 hover:bg-primary/10 ring-2 ring-primary/20"
+        )}
       >
         {/* Cover Image - Left side */}
         <div className="relative h-full w-[120px] flex-shrink-0 bg-muted">
@@ -175,10 +187,18 @@ export function DocumentCard({
       onContextMenu={onContextMenu}
       onClick={(e) => {
         if (!isRenaming) {
+          onSelect?.(e);
+        }
+      }}
+      onDoubleClick={(e) => {
+        if (!isRenaming) {
           onOpen?.();
         }
       }}
-      className="relative h-[260px] w-full rounded-[24px] overflow-hidden bg-card shadow-sm group cursor-pointer transition-transform hover:-translate-y-1"
+      className={cn(
+        "relative h-[260px] w-full rounded-[24px] overflow-hidden bg-card shadow-sm group cursor-pointer transition-transform hover:-translate-y-1",
+        isSelected && "bg-primary/5 hover:bg-primary/10 ring-2 ring-primary/20"
+      )}
     >
       {/* Cover Image - Full height */}
       <div className="absolute inset-0 bg-muted">

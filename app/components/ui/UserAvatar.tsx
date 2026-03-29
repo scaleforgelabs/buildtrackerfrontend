@@ -11,9 +11,10 @@ interface UserAvatarProps {
     } | null;
     className?: string;
     size?: number;
+    onClick?: () => void;
 }
 
-export default function UserAvatar({ user, className = "", size = 40 }: UserAvatarProps) {
+export default function UserAvatar({ user, className = "", size = 40, onClick }: UserAvatarProps) {
     // 1. Try to get the image
     let imageSrc = user?.avatar;
     if (typeof imageSrc === 'string') {
@@ -58,7 +59,11 @@ export default function UserAvatar({ user, className = "", size = 40 }: UserAvat
 
     if (imageSrc) {
         return (
-            <div className={`relative rounded-full overflow-hidden border border-border flex-shrink-0 ${className}`} style={{ width: size, height: size }}>
+            <div
+                className={`relative rounded-full overflow-hidden border border-border flex-shrink-0 ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''} ${className}`}
+                style={{ width: size, height: size }}
+                onClick={onClick}
+            >
                 <Image
                     src={imageSrc}
                     alt="User avatar"
@@ -71,8 +76,9 @@ export default function UserAvatar({ user, className = "", size = 40 }: UserAvat
 
     return (
         <div
-            className={`relative rounded-full overflow-hidden border border-border flex-shrink-0 flex items-center justify-center bg-primary/10 text-primary font-medium ${className}`}
+            className={`relative rounded-full overflow-hidden border border-border flex-shrink-0 flex items-center justify-center bg-primary/10 text-primary font-medium ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''} ${className}`}
             style={{ width: size, height: size, fontSize: size * 0.4 }}
+            onClick={onClick}
         >
             {getInitials()}
         </div>

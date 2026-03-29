@@ -6,6 +6,15 @@ import { Check, Loader2 } from "lucide-react";
 import { Images } from "@/public";
 import { notificationsService } from "@/libs/api/services";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { 
+    Select, 
+    SelectContent, 
+    SelectGroup, 
+    SelectItem, 
+    SelectTrigger, 
+    SelectValue 
+} from "@/app/components/ui/Select";
 
 interface Notification {
     id: string;
@@ -43,69 +52,58 @@ function getSeverityColor(severity: string): string {
 }
 
 export default function NotificationsPage() {
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState("all");
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const { currentWorkspace } = useWorkspace();
 
-    console.log('🎯 NotificationsPage rendered:', { currentWorkspace: currentWorkspace?.id });
+    // Reset page when tab, workspace, or page size changes
+    useEffect(() => {
+        setPage(1);
+    }, [activeTab, currentWorkspace?.id, pageSize]);
 
+    // 1. Fetch Notifications
+    const { data: notificationsRes, isLoading: loading, error: queryError } = useQuery({
+        queryKey: ['notifications', activeTab, currentWorkspace?.id, page, pageSize],
+        queryFn: () => activeTab === "all"
+            ? notificationsService.getNotifications({ Page: page, PageSize: pageSize })
+            : currentWorkspace
+                ? notificationsService.getWorkspaceNotifications(currentWorkspace.id, { Page: page, PageSize: pageSize })
+                : notificationsService.getNotifications({ Page: page, PageSize: pageSize }),
+        refetchInterval: 60000, // Poll every minute
+    });
+
+    const notifications: Notification[] = (notificationsRes as any)?.data?.results?.data || (notificationsRes as any)?.data?.data || (notificationsRes as any)?.data || [];
+    const pagination = (notificationsRes as any)?.data?.results?.pagination || (notificationsRes as any)?.data?.pagination || { page: 1, total_pages: 1, total_count: 0, page_size: 20 };
+    
+    // We already have unread counts from the response in some cases, 
+    // but calculating from the current page works for showing tab badges if we aren't using a separate unread-count API.
+    // However, for total counts, the backend provides pagination.total_count.
     const unreadCount = notifications.filter(n => !n.is_read).length;
     const workspaceUnreadCount = notifications.filter(n => !n.is_read && n.workspace === currentWorkspace?.id).length;
 
-    const fetchNotifications = async () => {
-        console.log('🚀 Starting fetchNotifications...');
-        try {
-            setLoading(true);
-            setError(null);
+    // 2. Mark All Read
+    const markAllReadMutation = useMutation({
+        mutationFn: () => notificationsService.markAllAsRead(),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        },
+    });
 
-            console.log('📡 Making API call...', { activeTab, currentWorkspace: currentWorkspace?.id });
-            console.log('🔍 notificationsService:', notificationsService);
+    // 3. Mark Single Read
+    const markReadMutation = useMutation({
+        mutationFn: (id: string) => notificationsService.markAsRead(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        },
+    });
 
-            const response = activeTab === "all"
-                ? await notificationsService.getNotifications()
-                : currentWorkspace
-                    ? await notificationsService.getWorkspaceNotifications(currentWorkspace.id)
-                    : await notificationsService.getNotifications();
-
-            console.log('🔔 Notifications API Response:', response.data);
-            setNotifications(response.data.results.data);
-        } catch (err: any) {
-            console.error('❌ Failed to fetch notifications:', err);
-            setError('Failed to load notifications');
-        } finally {
-            setLoading(false);
-        }
+    const handleMarkAllRead = () => markAllReadMutation.mutate();
+    const handleNotificationClick = (id: string) => {
+        const n = notifications.find(x => x.id === id);
+        if (n && !n.is_read) markReadMutation.mutate(id);
     };
-
-    const handleMarkAllRead = async () => {
-        try {
-            await notificationsService.markAllAsRead();
-            setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
-        } catch (err) {
-            console.error('Failed to mark all as read:', err);
-        }
-    };
-
-    const handleNotificationClick = async (id: string) => {
-        const notification = notifications.find(n => n.id === id);
-        if (notification && !notification.is_read) {
-            try {
-                await notificationsService.markAsRead(id);
-                setNotifications(prev => prev.map(n =>
-                    n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
-                ));
-            } catch (err) {
-                console.error('Failed to mark as read:', err);
-            }
-        }
-    };
-
-    useEffect(() => {
-        console.log('🔄 useEffect triggered:', { activeTab, currentWorkspace: currentWorkspace?.id });
-        fetchNotifications();
-    }, [activeTab, currentWorkspace]);
 
     if (loading) {
         return (
@@ -117,13 +115,13 @@ export default function NotificationsPage() {
         );
     }
 
-    if (error) {
+    if (queryError) {
         return (
             <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
                 <div className="text-center py-20">
-                    <p className="text-red-600 font-medium">{error}</p>
+                    <p className="text-red-600 font-medium">Failed to load notifications</p>
                     <button
-                        onClick={fetchNotifications}
+                        onClick={() => queryClient.invalidateQueries({ queryKey: ['notifications'] })}
                         className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                         Try Again
@@ -228,9 +226,9 @@ export default function NotificationsPage() {
 
                                 <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5 font-medium">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${notification.severity === 'error' ? 'bg-red-100 text-red-700' :
-                                            notification.severity === 'warning' ? 'bg-yellow-100 text-yellow-700' :
-                                                notification.severity === 'success' ? 'bg-green-100 text-green-700' :
-                                                    'bg-blue-100 text-blue-700'
+                                        notification.severity === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                                            notification.severity === 'success' ? 'bg-green-100 text-green-700' :
+                                                'bg-blue-100 text-blue-700'
                                         }`}>
                                         {notification.severity}
                                     </span>
@@ -258,6 +256,54 @@ export default function NotificationsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Pagination Footer */}
+            {notifications.length > 0 && pagination.total_pages > 1 && (
+                <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 px-2">
+                    <div className="flex items-center gap-4">
+                        <p className="text-sm font-medium text-muted-foreground">
+                            Showing <span className="text-foreground">{(pagination.page - 1) * pagination.page_size + 1} to {Math.min(pagination.page * pagination.page_size, pagination.total_count)}</span> of <span className="text-foreground">{pagination.total_count} notifications</span>
+                        </p>
+                        
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Page size:</span>
+                            <Select value={pageSize.toString()} onValueChange={(val) => setPageSize(Number(val))}>
+                                <SelectTrigger className="h-8 w-20 rounded-xl border border-border bg-white text-xs font-bold">
+                                    <SelectValue placeholder="20" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl border border-border bg-white shadow-xl">
+                                    <SelectGroup>
+                                        {[10, 20, 30, 40, 50].map((size) => (
+                                            <SelectItem key={size} value={size.toString()} className="text-xs font-medium hover:bg-muted cursor-pointer transition-colors">
+                                                {size}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={pagination.page === 1}
+                            className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Previous
+                        </button>
+                        <span className="px-4 py-2 text-sm font-bold bg-muted rounded-xl border border-border">
+                            {pagination.page} of {pagination.total_pages}
+                        </span>
+                        <button 
+                            onClick={() => setPage(p => Math.min(pagination.total_pages, p + 1))}
+                            disabled={pagination.page === pagination.total_pages}
+                            className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

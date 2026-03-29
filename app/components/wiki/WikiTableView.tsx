@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { MoreVertical, Download, Trash2, Edit2 } from "lucide-react";
+import { MoreVertical, Download, Trash2, Edit2, Folder } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Images } from "@/public";
 import UserAvatar from "../ui/UserAvatar";
@@ -35,6 +35,7 @@ type WikiTableItem = {
   onRename?: () => void;
   onDelete?: () => void;
   onDownload?: () => void;
+  location?: { id: string; name: string };
 };
 
 type WikiTableSection = {
@@ -132,59 +133,7 @@ function TableRow({
   onContextMenu: (e: React.MouseEvent) => void;
   onRenameSuccess?: () => void;
 }) {
-  const [renaming, setRenaming] = useState(false);
-
-  const [renameVal, setRenameVal] = useState(item.name);
-  const [isSaving, setIsSaving] = useState(false);
-  const { currentWorkspace } = useWorkspace();
-
-  useEffect(() => {
-    if (isRenamingProp) {
-      setRenaming(true);
-      setRenameVal(item.name);
-    }
-  }, [isRenamingProp, item.name]);
-
-  const handleRenameSubmit = async () => {
-    if (isSaving) return;
-    if (!renameVal.trim() || renameVal === item.name) {
-      setRenaming(false);
-      onRenameSuccess?.();
-      return;
-    }
-    setIsSaving(true);
-    try {
-      if (item.kind === "folder") {
-        await filesService.renameFolder(currentWorkspace?.id!, item.id, {
-          name: renameVal,
-        });
-      } else if (item.kind === "file") {
-        await filesService.renameFile(item.id, { file_name: renameVal });
-      } else if (item.kind === "document") {
-        await wikiService.updateDocument(currentWorkspace?.id!, item.id, {
-          document_title: renameVal
-        });
-      }
-      item.onRename?.();
-      onRenameSuccess?.();
-    } catch (error) {
-      console.error("Rename failed:", error);
-    } finally {
-      setIsSaving(false);
-      setRenaming(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleRenameSubmit();
-    } else if (e.key === "Escape") {
-      setRenaming(false);
-      setRenameVal(item.name);
-      onRenameSuccess?.();
-    }
-    e.stopPropagation();
-  };
+  // Removed inline rename logic to favor global Modal-based approach
 
   const ownerLabel = item.owner
     ? `${item.owner.first_name ?? ""} ${item.owner.last_name ?? ""}`.trim() ||
@@ -216,46 +165,34 @@ function TableRow({
       <td className="px-3 md:px-4 py-3 min-w-0 max-w-xs sm:max-w-none">
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
           <ItemIcon item={item} />
-          {renaming ? (
-            <input
-              autoFocus
-              value={renameVal}
-              onClick={(e) => e.stopPropagation()}
-              onFocus={(e) => {
-                const val = e.target.value;
-                const lastDotIndex = val.lastIndexOf(".");
-                if (lastDotIndex > 0) {
-                  e.target.setSelectionRange(0, lastDotIndex);
-                } else {
-                  e.target.select();
-                }
-              }}
-              onChange={(e) => setRenameVal(e.target.value)}
-              onBlur={handleRenameSubmit}
-              onKeyDown={handleKeyDown}
-              disabled={isSaving}
-              className={cn(
-                "text-xs md:text-sm font-medium text-foreground bg-muted px-2 py-1 rounded outline-none border border-primary flex-1 min-w-0 max-w-[calc(100vw-140px)]",
-                isSaving && "opacity-50 cursor-not-allowed"
-              )}
-            />
-          ) : (
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <span
-                className="text-xs md:text-sm font-medium text-foreground block truncate"
-                title={item.name}
-              >
-                {item.name}
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <span
+              className="text-xs md:text-sm font-medium text-foreground block truncate"
+              title={item.name}
+            >
+              {item.name}
+            </span>
+            {item.kind === "folder" && item.itemCount !== undefined && (
+              <span className="text-xs text-muted-foreground">
+                ({item.itemCount})
               </span>
-              {item.kind === "folder" && item.itemCount !== undefined && (
-                <span className="text-xs text-muted-foreground">
-                  ({item.itemCount})
-                </span>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </td>
+
+      {/* Location (Only shown during filtering) */}
+      {item.location && (
+        <td className="px-3 md:px-4 py-3 text-xs md:text-sm text-primary hover:underline whitespace-nowrap hidden sm:table-cell">
+          <button 
+            onClick={(e) => { e.stopPropagation(); if (item.location?.id) item.onOpen?.(); }}
+            className="hover:underline flex items-center gap-1"
+          >
+            <Folder className="h-3 w-3" />
+            {item.location.name}
+          </button>
+        </td>
+      )}
 
       <td className="px-3 md:px-4 py-3 text-xs md:text-sm text-muted-foreground whitespace-nowrap hidden md:table-cell">
         {item.modifiedAt}
@@ -287,14 +224,27 @@ function TableRow({
 
       <td
         className="px-3 md:px-4 py-3 text-right"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
       >
-        <button
-          onClick={onContextMenu}
-          className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
-        >
-          <MoreVertical className="h-4 w-4 text-muted-foreground" />
-        </button>
+        <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          {item.onDownload && (
+            <button
+              onClick={(e) => { e.stopPropagation(); item.onDownload?.(); }}
+              className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+              title="Download"
+            >
+              <Download size={16} />
+            </button>
+          )}
+          <button
+            onClick={onContextMenu}
+            className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted transition-colors"
+          >
+            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -347,6 +297,11 @@ function TableSection({
               <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap truncate">
                 Name
               </th>
+              {section.items.some(i => !!i.location) && (
+                <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden sm:table-cell">
+                  Location
+                </th>
+              )}
               <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden md:table-cell">
                 Last modified
               </th>

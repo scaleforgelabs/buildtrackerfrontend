@@ -34,7 +34,7 @@ function cn(...classes: (string | undefined | false)[]): string {
 }
 
 const statusColors: Record<string, string> = {
-  "pending": "bg-slate-400",
+  "pending": "bg-amber-500",
   "in_progress": "bg-blue-500",
   "completed": "bg-emerald-500",
   "blocked": "bg-red-500",

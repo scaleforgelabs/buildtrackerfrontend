@@ -23,6 +23,9 @@ export const tasksService = {
 
   addTaskComment: (id: string, data: any) =>
     api.post(`/tasks/${id}/comments/`, data),
+
+  getTasksByWorkspace: (workspaceId: string, params?: any) =>
+    api.get(`/tasks/${workspaceId}/tasks/`, { params }),
 };
 
 // Personal Tasks Services
@@ -228,11 +231,17 @@ export const filesService = {
   renameFolder: (workspaceId: string, folderId: string, data: any) =>
     api.put(`/files/workspaces/${workspaceId}/folders/${folderId}/`, data),
 
+  getWorkspaceFiles: (workspaceId: string, params?: any) =>
+    api.get(`/files/workspaces/${workspaceId}/files/`, { params }),
+
   renameFile: (fileId: string, data: any) =>
     api.put(`/files/files/${fileId}/`, data),
 
   downloadFile: (fileId: string) =>
-    api.get(`/files/files/${fileId}/`),
+    api.get(`/files/files/${fileId}/download/`),
+
+  downloadFolder: (workspaceId: string, folderId: string) =>
+    api.get(`/files/workspaces/${workspaceId}/folders/${folderId}/download/`),
 };
 
 // Quick Links Services

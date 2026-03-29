@@ -9,46 +9,36 @@ import {
   Plus,
   Upload
 } from 'lucide-react'
-import KanbanView from '@/app/components/tasks/views/KanbanView'
-import ListView from '@/app/components/tasks/views/ListView'
-import BoardView from '@/app/components/tasks/views/BoardView'
-import TimelineView from '@/app/components/tasks/views/TimelineView'
-import CreateTaskModal from '@/app/components/tasks/modals/CreateTaskModal'
+import dynamic from "next/dynamic";
+const KanbanView = dynamic(() => import("@/app/components/tasks/views/KanbanView"), { ssr: false });
+const ListView = dynamic(() => import("@/app/components/tasks/views/ListView"), { ssr: false });
+const BoardView = dynamic(() => import("@/app/components/tasks/views/BoardView"), { ssr: false });
+const TimelineView = dynamic(() => import("@/app/components/tasks/views/TimelineView"), { ssr: false });
+const CreateTaskModal = dynamic(() => import("@/app/components/tasks/modals/CreateTaskModal"), { ssr: false });
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useWorkspace } from "@/libs/hooks/useWorkspace"
 import { tasksService } from "@/libs/api/services"
 import api from "@/libs/api"
 import { useCallback } from 'react'
 
 const TasksPage = () => {
+  const queryClient = useQueryClient();
   const [currentView, setCurrentView] = useState('list')
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [tasks, setTasks] = useState<any[]>([])
-  const [tasksLoading, setTasksLoading] = useState(true)
   const { currentWorkspace } = useWorkspace()
+
+  const { data: tasksRes, isLoading: tasksLoading, refetch: fetchTasks } = useQuery({
+    queryKey: ['globalTasks'],
+    queryFn: () => tasksService.getTasks(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const tasks = (tasksRes as any)?.data?.results?.data || (tasksRes as any)?.data || [];
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  const fetchTasks = useCallback(async () => {
-    try {
-      setTasksLoading(true)
-      // Since this is the global dashboard, we fetch all tasks
-      const response = await tasksService.getTasks()
-      setTasks(response.data.results?.data || response.data || [])
-    } catch (error) {
-      console.error("Failed to fetch tasks:", error)
-    } finally {
-      setTasksLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (mounted) {
-      fetchTasks()
-    }
-  }, [mounted, fetchTasks])
 
   const tabs = [
     { id: 'kanban', label: 'Kanban', icon: Layout },
@@ -58,14 +48,14 @@ const TasksPage = () => {
   ]
 
   const renderView = () => {
-    if (!mounted) return <div>Loading...</div>
+    if (!mounted || tasksLoading) return <div className="p-8 text-center text-muted-foreground">Loading tasks...</div>
 
     switch (currentView) {
-      case 'kanban': return <KanbanView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} onRefresh={fetchTasks} />
-      case 'list': return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />
-      case 'board': return <BoardView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />
-      case 'timeline': return <TimelineView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />
-      default: return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={setTasks} />
+      case 'kanban': return <KanbanView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['globalTasks'] })} onRefresh={() => fetchTasks()} />
+      case 'list': return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['globalTasks'] })} />
+      case 'board': return <BoardView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['globalTasks'] })} />
+      case 'timeline': return <TimelineView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['globalTasks'] })} />
+      default: return <ListView tasks={tasks} loading={tasksLoading} onTasksChange={() => queryClient.invalidateQueries({ queryKey: ['globalTasks'] })} />
     }
   }
 

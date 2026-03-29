@@ -22,6 +22,7 @@ type FileCardProps = {
   onContextMenu?: (e: React.MouseEvent) => void;
   onRename?: (newName: string) => void;
   onRenameSuccess?: () => void;
+  onOpen?: () => void;
   canEdit?: boolean;
 };
 
@@ -50,6 +51,7 @@ export function FileCard({
   onContextMenu,
   onRename,
   onRenameSuccess,
+  onOpen,
   canEdit = true,
 }: FileCardProps) {
   const [isRenaming, setIsRenaming] = useState(false);
@@ -117,6 +119,7 @@ export function FileCard({
           isSelected && "bg-primary/5 hover:bg-primary/10"
         )}
         onClick={onSelect}
+        onDoubleClick={onOpen || handleDownload}
         onContextMenu={onContextMenu}
       >
         <div className="flex items-center gap-4 flex-1">
@@ -189,6 +192,7 @@ export function FileCard({
         isSelected && "bg-primary/5 hover:bg-primary/10 ring-2 ring-primary/20"
       )}
       onClick={onSelect}
+      onDoubleClick={onOpen || handleDownload}
       onContextMenu={onContextMenu}
     >
       <div className="h-full p-6 flex flex-col">

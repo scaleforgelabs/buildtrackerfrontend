@@ -9,51 +9,55 @@ import { quickLinksService } from "@/libs/api/services";
 import QuickLinkCard from "@/app/components/quick-links/QuickLinkCard";
 import AddLinksModal from "@/app/components/quick-links/modal/AddLinksModal";
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
+
+interface QuickLink {
+  id: string;
+  title: string;
+  url: string;
+  icon?: string;
+  category?: string;
+  description?: string;
+  created_at: string;
+}
 
 export default function QuickLinksPage() {
   const [open, setOpen] = useState(false);
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
-  const [links, setLinks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const pathname = usePathname();
+  const isRouteActive = pathname.includes('/quick-links');
+  const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
+
+  const { data: linksRes, isLoading: loading } = useQuery({
+    queryKey: ['sharedQuickLinks', currentWorkspace?.id],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (!wsId) return null;
+      return quickLinksService.getSharedQuickLinks(wsId, { _t: Date.now() });
+    },
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const links: QuickLink[] = (linksRes as any)?.data?.shared_links || [];
 
   const totalPages = Math.ceil(links.length / itemsPerPage) || 1;
   const paginatedLinks = links.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  useEffect(() => {
-    const fetchLinks = async () => {
-      if (currentWorkspace?.id) {
-        setLoading(true);
-        try {
-          const sharedLinksRes = await quickLinksService.getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() });
-          const sharedLinks = sharedLinksRes.data.shared_links || [];
-
-          setLinks(sharedLinks);
-        } catch (error) {
-          console.error("Failed to fetch quick links:", error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchLinks();
-  }, [currentWorkspace?.id]);
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['sharedQuickLinks', currentWorkspace?.id] });
+  };
 
   return (
     <div className="p-6 space-y-6 bg-muted min-h-screen">
       <AddLinksModal
         open={open}
         onClose={() => setOpen(false)}
-        onLinkAdded={() => {
-          if (currentWorkspace?.id) {
-            quickLinksService
-              .getSharedQuickLinks(currentWorkspace.id, { _t: Date.now() })
-              .then((res) => setLinks(res.data.shared_links || []));
-          }
-        }}
+        onLinkAdded={handleRefresh}
       />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -90,24 +94,8 @@ export default function QuickLinksPage() {
                 icon={link.icon}
                 category={link.category}
                 description={link.description}
-                onSaved={() => {
-                  if (currentWorkspace?.id) {
-                    quickLinksService
-                      .getSharedQuickLinks(currentWorkspace.id, {
-                        _t: Date.now(),
-                      })
-                      .then((res) => setLinks(res.data.shared_links || []));
-                  }
-                }}
-                onDeleted={() => {
-                  if (currentWorkspace?.id) {
-                    quickLinksService
-                      .getSharedQuickLinks(currentWorkspace.id, {
-                        _t: Date.now(),
-                      })
-                      .then((res) => setLinks(res.data.shared_links || []));
-                  }
-                }}
+                onSaved={handleRefresh}
+                onDeleted={handleRefresh}
               />
             ))}
           </div>

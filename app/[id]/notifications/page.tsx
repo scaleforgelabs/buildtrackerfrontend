@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import Image, { StaticImageData } from "next/image";
 import { Check, Loader2 } from "lucide-react";
 import { Images } from "@/public";
@@ -8,6 +10,14 @@ import Link from "next/link";
 import { notificationsService } from "@/libs/api/services";
 import { useWorkspace } from "@/libs/hooks/useWorkspace";
 import UserAvatar from "@/app/components/ui/UserAvatar";
+import { 
+    Select, 
+    SelectContent, 
+    SelectGroup, 
+    SelectItem, 
+    SelectTrigger, 
+    SelectValue 
+} from "@/app/components/ui/Select";
 
 interface NotificationItem {
   id: string;
@@ -29,15 +39,14 @@ interface NotificationItem {
 
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState("all");
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { currentWorkspace, workspaces } = useWorkspace();
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
-  const workspaceUnreadCount = notifications.filter(
-    (n) => !n.isRead && n.workspace === currentWorkspace?.name,
-  ).length;
+  // Reset page when tab, workspace, or page size changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, currentWorkspace?.id, pageSize]);
 
   const formatTimeAgo = (dateString: string): string => {
     const date = new Date(dateString);
@@ -56,23 +65,13 @@ export default function NotificationsPage() {
 
   const transformApiData = (apiNotifications: any[]): NotificationItem[] => {
     return apiNotifications.map((notification) => {
-      // Find the workspace by ID from the workspaces list
-      const workspace = workspaces.find(
-        (ws) => ws.id === notification.workspace,
-      );
+      const workspace = workspaces.find((ws: { id: string; name: string }) => ws.id === notification.workspace);
       const workspaceName = workspace?.name || "Unknown Workspace";
 
-      // Extract assignee name from description for task_assigned
       let assignedTo = "User";
-      if (
-        notification.note_type === "task_assigned" &&
-        notification.description
-      ) {
-        // Extract name from description like: 'You have been assigned to "task name" by {Name}'
-        const match = notification.description.match(/by (.+)$/);
-        if (match) {
-          assignedTo = match[1];
-        }
+      if (notification.note_type === "task_assigned" && notification.description) {
+        const match = (notification.description as string).match(/by (.+)$/);
+        if (match) assignedTo = match[1];
       }
 
       const stripHtmlTags = (str: string | undefined): string | undefined => {
@@ -86,33 +85,12 @@ export default function NotificationsPage() {
         userId: notification.user,
         avatar: notification.user_avatar || "",
         action: notification.action.split(":")[0] || notification.action,
-        target:
-          notification.action.split(":")[1]?.trim() ||
-          notification.description ||
-          "Task",
-        context:
-          notification.note_type === "task_assigned"
-            ? "Tasks"
-            : notification.note_type === "deadline_approaching"
-              ? "Tasks"
-              : notification.note_type?.includes("wiki")
-                ? "to Wiki"
-                : notification.note_type?.includes("link")
-                  ? "to Quick Links"
-                  : "Tasks",
+        target: notification.action.split(":")[1]?.trim() || notification.description || "Task",
+        context: notification.note_type === "task_assigned" || notification.note_type === "deadline_approaching" ? "Tasks" : notification.note_type?.includes("wiki") ? "to Wiki" : notification.note_type?.includes("link") ? "to Quick Links" : "Tasks",
         time: formatTimeAgo(notification.created_at),
         workspace: workspaceName,
         isRead: notification.is_read,
-        type:
-          notification.note_type === "task_assigned"
-            ? "assign"
-            : notification.note_type === "deadline_approaching"
-              ? "comment"
-              : notification.note_type?.includes("upload")
-                ? "upload"
-                : notification.note_type?.includes("add")
-                  ? "add"
-                  : "comment",
+        type: notification.note_type === "task_assigned" ? "assign" : notification.note_type === "deadline_approaching" ? "comment" : notification.note_type?.includes("upload") ? "upload" : notification.note_type?.includes("add") ? "add" : "comment",
         content: stripHtmlTags(notification.description),
         assignedTo: assignedTo,
         fileCheck: notification.note_type?.includes("upload") || false,
@@ -121,34 +99,35 @@ export default function NotificationsPage() {
     });
   };
 
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const pathname = usePathname();
+  const isRouteActive = pathname.includes('/notifications');
 
-      const response =
-        activeTab === "all"
-          ? await notificationsService.getNotifications()
-          : currentWorkspace
-            ? await notificationsService.getWorkspaceNotifications(
-                currentWorkspace.id,
-              )
-            : await notificationsService.getNotifications();
+  const { data: notificationsRes, isLoading: loading, error, refetch } = useQuery({
+    queryKey: ['notifications', activeTab, currentWorkspace?.id, page, pageSize],
+    queryFn: async () => {
+      const wsId = currentWorkspace?.id;
+      if (activeTab === "all" || !wsId) return notificationsService.getNotifications({ Page: page, PageSize: pageSize });
+      return notificationsService.getWorkspaceNotifications(wsId, { Page: page, PageSize: pageSize });
+    },
+    enabled: isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
 
-      const transformedData = transformApiData(response.data.results.data);
-      setNotifications(transformedData);
-    } catch (err: any) {
-      console.error("Failed to fetch notifications:", err);
-      setError("Failed to load notifications");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const rawNotifications: any[] = (notificationsRes as any)?.data?.results?.data || (notificationsRes as any)?.data?.data || (notificationsRes as any)?.data || [];
+  const pagination = (notificationsRes as any)?.data?.results?.pagination || (notificationsRes as any)?.data?.pagination || { page: 1, total_pages: 1, total_count: 0, page_size: 20 };
+  const notifications = transformApiData(rawNotifications);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const workspaceUnreadCount = notifications.filter(
+    (n) => !n.isRead && n.workspace === currentWorkspace?.name,
+  ).length;
+
+  const queryClient = useQueryClient();
 
   const handleMarkAllRead = async () => {
     try {
       await notificationsService.markAllAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     } catch (err) {
       console.error("Failed to mark all as read:", err);
     }
@@ -159,18 +138,15 @@ export default function NotificationsPage() {
     if (notification && !notification.isRead) {
       try {
         await notificationsService.markAsRead(id);
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-        );
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
       } catch (err) {
         console.error("Failed to mark as read:", err);
       }
     }
   };
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [activeTab, currentWorkspace]);
+  // Removed useEffect in favor of useQuery
+
 
   if (loading) {
     return (
@@ -186,9 +162,9 @@ export default function NotificationsPage() {
     return (
       <div className="p-4 md:p-8 space-y-8 bg-muted min-h-full">
         <div className="text-center py-20">
-          <p className="text-red-600 font-medium">{error}</p>
+          <p className="text-red-600 font-medium">Failed to load notifications</p>
           <button
-            onClick={fetchNotifications}
+            onClick={() => refetch()}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Try Again
@@ -224,11 +200,10 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-border/60">
           <button
             onClick={() => setActiveTab("all")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${
-              activeTab === "all"
-                ? "bg-blue-50 text-blue-600 shadow-sm"
-                : "text-muted-foreground hover:bg-muted"
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${activeTab === "all"
+              ? "bg-blue-50 text-blue-600 shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+              }`}
           >
             All
             {unreadCount > 0 && (
@@ -242,11 +217,10 @@ export default function NotificationsPage() {
           {currentWorkspace && (
             <button
               onClick={() => setActiveTab("workspace")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${
-                activeTab === "workspace"
-                  ? "bg-blue-50 text-blue-600 shadow-sm"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all text-sm font-medium ${activeTab === "workspace"
+                ? "bg-blue-50 text-blue-600 shadow-sm"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               {currentWorkspace.name}&apos;s Workspace
               {workspaceUnreadCount > 0 && (
@@ -266,18 +240,16 @@ export default function NotificationsPage() {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`p-4 sm:p-6 hover:bg-muted/40 transition-colors duration-200 cursor-pointer group ${
-              !notification.isRead ? "bg-blue-50/10" : ""
-            }`}
+            className={`p-4 sm:p-6 hover:bg-muted/40 transition-colors duration-200 cursor-pointer group ${!notification.isRead ? "bg-blue-50/10" : ""
+              }`}
             onClick={() => handleNotificationClick(notification.id)}
           >
             <div className="flex items-start gap-3 sm:gap-4">
               {/* Unread Indicator */}
               <div className="pt-2 sm:pt-3 shrink-0">
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    !notification.isRead ? "bg-blue-600" : "bg-transparent"
-                  }`}
+                  className={`w-2 h-2 rounded-full ${!notification.isRead ? "bg-blue-600" : "bg-transparent"
+                    }`}
                 />
               </div>
 
@@ -314,7 +286,7 @@ export default function NotificationsPage() {
                 <div className="text-[10px] sm:text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
                   <span>
                     {notification.context?.includes("Tasks") ||
-                    notification.action === "commented on"
+                      notification.action === "commented on"
                       ? "Tasks"
                       : notification.context?.includes("Quick Links")
                         ? "Quick Links"
@@ -375,6 +347,54 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination Footer */}
+      {notifications.length > 0 && pagination.total_pages > 1 && (
+        <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 px-2">
+          <div className="flex items-center gap-4">
+            <p className="text-sm font-medium text-muted-foreground">
+              Showing <span className="text-foreground">{(pagination.page - 1) * pagination.page_size + 1} to {Math.min(pagination.page * pagination.page_size, pagination.total_count)}</span> of <span className="text-foreground">{pagination.total_count} notifications</span>
+            </p>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Page size:</span>
+              <Select value={pageSize.toString()} onValueChange={(val) => setPageSize(Number(val))}>
+                <SelectTrigger className="h-8 w-20 rounded-xl border border-border bg-white text-xs font-bold">
+                  <SelectValue placeholder="20" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border border-border bg-white shadow-xl">
+                  <SelectGroup>
+                    {[10, 20, 30, 40, 50].map((size) => (
+                      <SelectItem key={size} value={size.toString()} className="text-xs font-medium hover:bg-muted cursor-pointer transition-colors">
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={pagination.page === 1}
+              className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <span className="px-4 py-2 text-sm font-bold bg-muted rounded-xl border border-border">
+              {pagination.page} of {pagination.total_pages}
+            </span>
+            <button 
+              onClick={() => setPage(p => Math.min(pagination.total_pages, p + 1))}
+              disabled={pagination.page === pagination.total_pages}
+              className="px-6 py-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

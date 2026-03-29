@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   BarChart3,
   TrendingUp,
@@ -18,7 +18,16 @@ import {
   Ban,
   Loader2,
 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
+
+const ResponsiveContainer = dynamic(() => import("recharts").then(mod => mod.ResponsiveContainer), { ssr: false });
+const PieChart = dynamic(() => import("recharts").then(mod => mod.PieChart), { ssr: false });
+const Pie = dynamic(() => import("recharts").then(mod => mod.Pie), { ssr: false });
+const Cell = dynamic(() => import("recharts").then(mod => mod.Cell), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then(mod => mod.Tooltip), { ssr: false });
+
 import Image, { StaticImageData } from "next/image";
 import { format, subDays, subMonths } from "date-fns";
 import { Images } from "@/public";
@@ -57,120 +66,102 @@ interface Member {
 export default function ReportsPage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const { currentWorkspace } = useWorkspace();
+  const [timeFilter, setTimeFilter] = useState<"7d" | "30d" | "3m" | "all">("30d");
 
-  // Time filter state
-  const [timeFilter, setTimeFilter] = useState<"7d" | "30d" | "3m" | "all">(
-    "30d",
-  );
+  // 1. Calculate date parameters based on filter
+  const dateParams = useMemo(() => {
+    const today = new Date();
+    let dateFrom: string | undefined = undefined;
+    const dateTo: string = format(today, "yyyy-MM-dd");
+    let period: "weekly" | "monthly" | "quarterly" | "yearly" = "monthly";
 
-  // State for API data
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [charts, setCharts] = useState<DashboardCharts | null>(null);
-  const [performance, setPerformance] = useState<PerformanceAnalytics | null>(
-    null,
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+    switch (timeFilter) {
+      case "7d":
+        dateFrom = format(subDays(today, 7), "yyyy-MM-dd");
+        period = "weekly";
+        break;
+      case "30d":
+        dateFrom = format(subDays(today, 30), "yyyy-MM-dd");
+        period = "monthly";
+        break;
+      case "3m":
+        dateFrom = format(subMonths(today, 3), "yyyy-MM-dd");
+        period = "quarterly";
+        break;
+      case "all":
+        dateFrom = undefined;
+        period = "yearly";
+        break;
+    }
+    return { dateFrom, dateTo, period };
+  }, [timeFilter]);
 
-  // Fetch data on mount, workspace change, or filter change
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
+  const pathname = usePathname();
+  const isRouteActive = pathname.includes('/reports');
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  // 2. Fetch Data via React Query
+  const { data: stats, isLoading: loadingStats } = useQuery({
+    queryKey: ['dashboardStats', currentWorkspace?.id, dateParams.dateFrom, dateParams.dateTo],
+    queryFn: () => AnalyticsService.getDashboardStats(currentWorkspace!.id, { DateFrom: dateParams.dateFrom, DateTo: dateParams.dateTo }),
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
 
-        // Calculate date parameters
-        const today = new Date();
-        let dateFrom: string | undefined = undefined;
-        let dateTo: string = format(today, "yyyy-MM-dd");
-        let period: "weekly" | "monthly" | "quarterly" | "yearly" = "monthly"; // Used by charts
+  const { data: charts, isLoading: loadingCharts } = useQuery({
+    queryKey: ['dashboardCharts', currentWorkspace?.id, dateParams.period, dateParams.dateFrom, dateParams.dateTo],
+    queryFn: () => AnalyticsService.getDashboardCharts(currentWorkspace!.id, { Period: dateParams.period, DateFrom: dateParams.dateFrom, DateTo: dateParams.dateTo }),
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
 
-        switch (timeFilter) {
-          case "7d":
-            dateFrom = format(subDays(today, 7), "yyyy-MM-dd");
-            period = "weekly";
-            break;
-          case "30d":
-            dateFrom = format(subDays(today, 30), "yyyy-MM-dd");
-            period = "monthly";
-            break;
-          case "3m":
-            dateFrom = format(subMonths(today, 3), "yyyy-MM-dd");
-            period = "quarterly";
-            break;
-          case "all":
-            dateFrom = undefined; // backend handles empty as all time
-            period = "yearly"; // Or however backend handles all-time trend
-            break;
-        }
+  const { data: performance, isLoading: loadingPerf } = useQuery({
+    queryKey: ['performanceAnalytics', currentWorkspace?.id, dateParams.dateFrom, dateParams.dateTo],
+    queryFn: () => AnalyticsService.getPerformanceAnalytics(currentWorkspace!.id, { DateFrom: dateParams.dateFrom, DateTo: dateParams.dateTo }),
+    enabled: !!currentWorkspace?.id && isRouteActive,
+    staleTime: 5 * 60 * 1000,
+  });
 
-        const params = { DateFrom: dateFrom, DateTo: dateTo };
-        const chartParams = {
-          Period: period,
-          DateFrom: dateFrom,
-          DateTo: dateTo,
-        };
-
-        const [statsData, chartsData, perfData] = await Promise.all([
-          AnalyticsService.getDashboardStats(currentWorkspace.id, params),
-          AnalyticsService.getDashboardCharts(currentWorkspace.id, chartParams),
-          AnalyticsService.getPerformanceAnalytics(currentWorkspace.id, params),
-        ]);
-
-        setStats(statsData);
-        setCharts(chartsData);
-        setPerformance(perfData);
-      } catch (err) {
-        console.error("Failed to fetch report data:", err);
-        setError("Failed to load report data. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [currentWorkspace?.id, timeFilter]);
+  const loading = loadingStats || loadingCharts || loadingPerf;
 
   // Map API status data to chart format or use defaults if empty
-  const statusChartData = charts?.statusData.map((item) => {
-    let color = "#cbd5e1"; // default slate-300
-    if (item.label === "completed") color = "#22C55E";
-    else if (item.label === "in_progress") color = "#3B82F6";
-    else if (item.label === "pending") color = "#F97316";
-    else if (item.label === "blocked") color = "#EF4444";
+  const statusChartData = charts?.statusData.map((item: any) => {
+    const label = item.label.toLowerCase().replace(/_/g, ' ');
+    let color = "#F59E0B"; // default Vibrant Amber
 
-    let name: string;
-    if (item.label === "in_progress") {
-      name = "In Progress";
-    } else {
-      name =
-        item.label.charAt(0).toUpperCase() +
-        item.label.slice(1).replace("_", " ");
+    if (label.includes("complete") || label.includes("done") || label.includes("success")) {
+      color = "#22C55E";
+    } else if (label.includes("progress") || label.includes("doing") || label.includes("active")) {
+      color = "#3B82F6";
+    } else if (label.includes("pending") || label.includes("todo") || label.includes("hold") || label.includes("started")) {
+      color = "#F59E0B";
+    } else if (label.includes("blocked")) {
+      color = "#EF4444";
     }
+
+    const name = label.split(' ').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
 
     return {
       name,
       value: item.value,
       color,
+      fill: color,
     };
   }) || [
-      { name: "Completed", value: 0, color: "#22C55E" },
-      { name: "In Progress", value: 0, color: "#3B82F6" },
-      { name: "Pending", value: 0, color: "#F97316" },
+      { name: "Completed", value: 0, color: "#22C55E", fill: "#22C55E" },
+      { name: "In Progress", value: 0, color: "#3B82F6", fill: "#3B82F6" },
+      { name: "Pending", value: 0, color: "#F59E0B", fill: "#F59E0B" },
     ];
 
   // Filter out zero values for cleaner chart
-  const activeStatusData = statusChartData.filter((d) => d.value > 0);
+  const activeStatusData = statusChartData.filter((d: any) => d.value > 0);
   const displayStatusData =
     activeStatusData.length > 0
       ? activeStatusData
-      : [{ name: "No Data", value: 1, color: "#e2e8f0" }];
+      : [{ name: "No Data", value: 1, color: "#F59E0B", fill: "#F59E0B" }];
 
   // Prepare member data from API
   const membersData: Member[] =
-    charts?.memberPerformance.map((m) => ({
+    charts?.memberPerformance.map((m: any) => ({
       name: m.member_name, // Backend now provides full name or username fallback
       email: m.member_email,
       phone: m.member_phone || "-",
@@ -355,7 +346,7 @@ export default function ReportsPage() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {displayStatusData.map((entry, index) => (
+                  {displayStatusData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -366,20 +357,20 @@ export default function ReportsPage() {
             <div className="absolute top-0 left-0 text-xs font-semibold text-muted-foreground">
               Pending{" "}
               <span className="text-[#F97316]">
-                {statusChartData.find((d) => d.name === "Pending")?.value || 0}
+                {statusChartData.find((d: any) => d.name === "Pending")?.value || 0}
               </span>
             </div>
             <div className="absolute top-1/2 -right-4 text-xs font-semibold text-muted-foreground -translate-y-1/2">
               Completed{" "}
               <span className="text-[#22C55E]">
-                {statusChartData.find((d) => d.name === "Completed")?.value ||
+                {statusChartData.find((d: any) => d.name === "Completed")?.value ||
                   0}
               </span>
             </div>
             <div className="absolute bottom-0 left-0 text-xs font-semibold text-muted-foreground">
               In Progress{" "}
               <span className="text-[#3B82F6]">
-                {statusChartData.find((d) => d.name === "In Progress")?.value ||
+                {statusChartData.find((d: any) => d.name === "In Progress")?.value ||
                   0}
               </span>
             </div>
@@ -451,7 +442,7 @@ export default function ReportsPage() {
           <div className="relative flex-1">
             <div className="space-y-5 max-h-[260px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
               {performance?.bottlenecks && performance.bottlenecks.length > 0 ? (
-                performance.bottlenecks.map((item, idx) => (
+                performance.bottlenecks.map((item: any, idx: number) => (
                   <div key={idx} className="flex gap-4">
                     <div className="w-1 self-stretch bg-red-500 rounded-full flex-shrink-0" />
                     <div className="min-w-0">
