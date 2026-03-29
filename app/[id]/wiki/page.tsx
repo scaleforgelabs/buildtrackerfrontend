@@ -32,6 +32,7 @@ import { filesService, wikiService } from "@/libs/api/services";
 import dynamic from "next/dynamic";
 import { WikiTableView } from "@/app/components/wiki/WikiTableView";
 import { ContextMenu } from "@/app/components/wiki/ContextMenu";
+import { AddActionCard } from "@/app/components/wiki/AddActionCard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const AddNewDocumentModal = dynamic(() => import("@/app/components/wiki/modal/AddNewDocumentModal"), { ssr: false });
@@ -175,7 +176,7 @@ function WikiPageContent() {
     let sourceItems = [...items];
 
     // If we are filtering by a specific file type, we use the global workspace files for 'file' kind
-    const isFileTypeFilter = typeFilter !== 'all' && typeFilter !== 'folder';
+    const isFileTypeFilter = typeFilter !== 'all' && typeFilter !== 'folder' && typeFilter !== 'templates' && typeFilter !== 'my_docs';
     if (isFileTypeFilter && kind === 'file' && allWorkspaceFiles.length > 0) {
       sourceItems = [...allWorkspaceFiles];
     }
@@ -187,70 +188,56 @@ function WikiPageContent() {
       filtered = filtered.filter(it => (it.name || it.title || it.file_name || "").toLowerCase().includes(searchQuery.toLowerCase()));
     }
 
-    // Type Filter (only for files/documents)
     // Type Filter Logic
-    // Type Filter Logic
-    // Type Filter Logic
-    if (typeFilter !== 'all') {
+    if (typeFilter !== 'all' && typeFilter !== 'templates' && typeFilter !== 'my_docs') {
       const targetFilter = typeFilter.toLowerCase();
       if (kind === 'folder') {
-        // If filter is for folders or 'all_flattened', show folders. 
-        if (targetFilter === 'folder' || targetFilter === 'folder_and_files' || targetFilter === 'all') {
+        if (targetFilter === 'folder' || targetFilter === 'folder_and_files') {
           // Show folders
         } else {
-          // Hide folders when looking for specific files/docs (Flattened results mode)
           filtered = [];
         }
       } else {
-        // Hiding items based on specific filters
         if (targetFilter === 'folder') {
           filtered = [];
-        } else if (targetFilter === 'folder_and_files') {
-           // Show all files but exclude documents if we want strict separation?
-           // Actually usually better to show both here.
         } else if (targetFilter === 'wiki_docs') {
-           // ONLY show kind === 'document'
            if (kind !== 'document') filtered = [];
         } else {
-          // Extension group matching
           filtered = filtered.filter(it => {
             const ext = kind === 'file' ? (it.file_name?.split('.').pop()?.toLowerCase()) : (it.type?.toLowerCase());
-            
-            // Separating Wiki Documents from File Specific Filters
-            if (['image', 'pdf', 'zip', 'docx'].includes(targetFilter) && kind === 'document') {
-               return false;
-            }
-
-            // Image Grouping
+            if (targetFilter === 'pdf') return ext === 'pdf';
+            if (targetFilter === 'word') return ['doc', 'docx'].includes(ext || "");
+            if (targetFilter === 'excel') return ['xls', 'xlsx', 'csv'].includes(ext || "");
             if (targetFilter === 'image') return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext || "");
-            
-            // wiki_docs specifically for only items from wikiService.getDocuments
-            if (targetFilter === 'wiki_docs') {
-               return kind === 'document';
-            }
-
-            // Document Grouping logic for common office/document types (general files)
-            if (targetFilter === 'docx') return ['docx', 'doc', 'pdf', 'txt', 'xlsx', 'xls', 'pptx', 'ppt', 'csv'].includes(ext || "");
-            
-            // Standard exact match for others (ZIP, etc)
-            return ext === targetFilter;
+            if (targetFilter === 'video') return ['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(ext || "");
+            if (targetFilter === 'audio') return ['mp3', 'wav', 'aac', 'ogg'].includes(ext || "");
+            if (targetFilter === 'zip') return ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext || "");
+            return ext === targetFilter || kind === targetFilter;
           });
         }
       }
     }
 
-    // Sorting Logic
-    return filtered.sort((a, b) => {
+    return filtered;
+  };
+
+  const sortItems = (items: any[]) => {
+    return [...items].sort((a, b) => {
       let valA, valB;
+      const keyA = a.name || a.title || a.file_name || "";
+      const keyB = b.name || b.title || b.file_name || "";
+
       if (sortBy === 'name') {
-        valA = (a.name || a.title || a.file_name || "").toLowerCase();
-        valB = (b.name || b.title || b.file_name || "").toLowerCase();
+        valA = keyA.toLowerCase();
+        valB = keyB.toLowerCase();
       } else if (sortBy === 'size') {
         valA = a.total_size || a.file_size || a.size || 0;
         valB = b.total_size || b.file_size || b.size || 0;
       } else {
-        valA = new Date(a.updated_at || a.uploaded_at || (a.time === "–" ? 0 : a.time)).getTime();
-        valB = new Date(b.updated_at || b.uploaded_at || (b.time === "–" ? 0 : b.time)).getTime();
+        const dateA = a.updated_at || a.uploaded_at || a.modifiedAt || (a.time === "–" ? 0 : a.time);
+        const dateB = b.updated_at || b.uploaded_at || b.modifiedAt || (b.time === "–" ? 0 : b.time);
+        valA = new Date(dateA).getTime() || 0;
+        valB = new Date(dateB).getTime() || 0;
       }
 
       if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
@@ -259,9 +246,18 @@ function WikiPageContent() {
     });
   };
 
+  const handleToggleSort = (column: 'name' | 'size' | 'modified') => {
+    if (sortBy === column) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('desc');
+    }
+  };
+
   // Segregated Suggestion Logic (Only at Root)
-  const suggestedFolders = !currentFolderId ? getProcessedItems(folders, 'folder').slice(0, 4) : [];
-  const suggestedFiles = !currentFolderId ? getProcessedItems(documents, 'document').slice(0, 4) : [];
+  const suggestedFolders = !currentFolderId ? sortItems(getProcessedItems(folders, 'folder')).slice(0, 4) : [];
+  const suggestedFiles = !currentFolderId ? sortItems(getProcessedItems(documents, 'document')).slice(0, 4) : [];
 
   const canEditResource = (item: any) => {
     if (!currentWorkspace || !user) return false;
@@ -511,19 +507,19 @@ function WikiPageContent() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 bg-background/50 p-1 rounded-lg border">
               <button
-                onClick={() => { setSortBy('name'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}
+                onClick={() => handleToggleSort('name')}
                 className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-all", sortBy === 'name' ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:bg-muted")}
               >
                 Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
               </button>
               <button
-                onClick={() => { setSortBy('size'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}
+                onClick={() => handleToggleSort('size')}
                 className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-all", sortBy === 'size' ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:bg-muted")}
               >
                 Size {sortBy === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
               </button>
               <button
-                onClick={() => { setSortBy('modified'); setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc'); }}
+                onClick={() => handleToggleSort('modified')}
                 className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-all", sortBy === 'modified' ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:bg-muted")}
               >
                 Modified {sortBy === 'modified' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -533,15 +529,33 @@ function WikiPageContent() {
             {/* File Type Filter */}
             <div className="flex items-center gap-1 bg-background/50 p-1 rounded-lg border">
               <select 
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                value={activeTab === 'templates' ? 'templates' : (typeFilter === 'all' && activeTab === 'docs' ? 'my_docs' : typeFilter)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'templates') {
+                    setActiveTab('templates');
+                    setTypeFilter('all');
+                  } else if (val === 'my_docs') {
+                    setActiveTab('docs');
+                    setTypeFilter('all');
+                  } else {
+                    setActiveTab('docs');
+                    setTypeFilter(val);
+                  }
+                }}
                 className="bg-transparent text-xs font-medium px-2 py-1 outline-none text-muted-foreground focus:text-primary transition-colors cursor-pointer"
               >
                 <option value="all">All Types</option>
-                <option value="pdf">PDFs</option>
+                {/* <option value="my_docs">My Documents</option> */}
+                <option value="templates">Template Marketplace</option>
+                <option value="pdf">PDF Documents</option>
+                <option value="word">Word Documents</option>
+                <option value="excel">Excel Sheets</option>
+                <option value="image">Images</option>
+                <option value="video">Videos</option>
+                <option value="audio">Audio</option>
                 <option value="zip">ZIP Files</option>
                 <option value="wiki_docs">Documents</option>
-                <option value="image">Images</option>
                 <option value="folder">Folders Only</option>
               </select>
             </div>
@@ -602,7 +616,7 @@ function WikiPageContent() {
             ) : (
               <>
                 {/* Folders & Files Section (Header + Creation Buttons) */}
-                {(getProcessedItems(folders, 'folder').length > 0 || getProcessedItems(files, 'file').length > 0) && (
+                {(!!currentFolderId || getProcessedItems(folders, 'folder').length > 0 || getProcessedItems(files, 'file').length > 0) && (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <button onClick={() => setOpenFolder(true)} className="p-2 rounded-lg hover:bg-muted transition-colors" title="New folder">
@@ -639,10 +653,13 @@ function WikiPageContent() {
                       selectedIds={selectedIds}
                       onSelectionChange={setSelectedIds}
                       onContextMenu={(e, item) => setContextMenu({ x: e.clientX, y: e.clientY, item })}
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={handleToggleSort}
                       sections={[{
                         label: searchQuery ? "All Matching Items" : (typeFilter === 'wiki_docs' ? 'Documents' : (typeFilter === 'folder_and_files' ? 'Folders & Files' : `${typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1).replace(/_/g, ' ')}`)),
                         count: getProcessedItems(folders, 'folder').length + getProcessedItems(files, 'file').length + getProcessedItems(documents, 'document').length,
-                        items: [
+                        items: sortItems([
                           ...getProcessedItems(folders, 'folder').map(folder => {
                             const stats = getFolderStats(folder.id);
                             return {
@@ -660,6 +677,7 @@ function WikiPageContent() {
                               onDownload: () => handleAction('download', {...folder, kind: 'folder'}),
                               onDelete: () => handleAction('delete', {...folder, kind: 'folder'}),
                               onRename: () => { setItemToRename({...folder, id: String(folder.id), kind: 'folder'}); setRenameModalOpen(true); },
+                              location: isFiltered ? (folder.parent?.name ? { id: folder.parent.id, name: folder.parent.name } : { id: "root", name: "Root" }) : undefined
                             };
                           }),
                           ...getProcessedItems(files, 'file').map(file => {
@@ -677,7 +695,7 @@ function WikiPageContent() {
                               members: file.uploaded_by_user ? [file.uploaded_by_user] : [],
                               onRename: () => { setItemToRename({...file, id: String(file.id), kind: 'file'}); setRenameModalOpen(true); },
                               onDownload: () => handleAction('download', {...file, kind: 'file'}),
-                              location: folderName ? { id: file.folder?.id || "", name: folderName } : undefined,
+                              location: isFiltered ? (folderName ? { id: file.folder?.id || "", name: folderName } : { id: "root", name: "Root" }) : undefined,
                               onOpen: file.folder ? () => handleOpenFolder(file.folder!.id, file.folder!.name) : undefined,
                             };
                           }),
@@ -697,57 +715,68 @@ function WikiPageContent() {
                             location: doc.folder ? { id: doc.folder.id, name: doc.folder.name } : undefined,
                             onOpen: doc.folder ? () => handleOpenFolder(doc.folder!.id, doc.folder!.name) : undefined,
                           })),
-                        ],
+                        ]),
                       }]}
                     />
                   </div>
                 )}
 
-                {/* Segregated Segments (Only at Root and Not Filtered) */}
-                {!currentFolderId && !isFiltered && (
+                {/* Segregated Segments (Only at Root) */}
+                {!currentFolderId && activeTab === 'docs' && typeFilter === 'all' && !searchQuery && (
                   <div className="space-y-8 animate-in fade-in duration-500">
-                    <div className="flex items-center justify-between group">
-                      <button
-                        onClick={() => setTypeFilter('folder')}
-                        className="flex items-center gap-2 text-xl font-semibold text-foreground hover:text-primary transition-colors"
-                      >
-                        Folders <span className="text-primary text-base font-normal ml-1">{getProcessedItems(folders, 'folder').length}</span>
-                      </button>
-                      <button onClick={() => setTypeFilter('folder')} className="text-sm font-medium text-primary hover:underline transition-colors px-2 py-1 rounded-md hover:bg-primary/5">
-                        View all folders
-                      </button>
-                    </div>
+                    {/* Folders Section (at Root) */}
+                    {(getProcessedItems(folders, 'folder').length > 0 || typeFilter === 'all' || typeFilter === 'folder') && (
+                      <div className="space-y-8">
+                        <div className="flex items-center justify-between group">
+                          <button
+                            onClick={() => setTypeFilter('folder')}
+                            className="flex items-center gap-2 text-xl font-semibold text-foreground hover:text-primary transition-colors"
+                          >
+                            Folders <span className="text-primary text-base font-normal ml-1">{getProcessedItems(folders, 'folder').length}</span>
+                          </button>
+                          <button onClick={() => setTypeFilter('folder')} className="text-sm font-medium text-primary hover:underline transition-colors px-2 py-1 rounded-md hover:bg-primary/5">
+                            View all folders
+                          </button>
+                        </div>
 
-                    {suggestedFolders.length > 0 && (
-                      <div className="space-y-4">
-                        <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Suggested Folders</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                          {suggestedFolders.map(folder => (
-                            <FolderCard
-                              key={folder.id}
-                              folderId={folder.id}
-                              title={folder.name}
-                              items={folder.item_count || 0}
-                              contributors={folder.contributors}
-                              view="grid"
-                              isSelected={selectedIds.includes(String(folder.id))}
-                              onSelect={(e) => handleSelect(e, String(folder.id), [...folders, ...files])}
-                              onOpen={() => handleOpenFolder(folder.id, folder.name)}
-                              onDownload={() => handleAction('download', { ...folder, kind: 'folder' })}
-                              onDelete={() => handleAction('delete', { ...folder, kind: 'folder' })}
-                              onRename={() => { setItemToRename({ ...folder, id: String(folder.id), kind: 'folder' }); setRenameModalOpen(true); }}
-                              onContextMenu={(e) => setContextMenu({ x: e.clientX, y: e.clientY, item: { ...folder, id: String(folder.id), kind: 'folder' } })}
-                              canEdit={canEditResource(folder)}
+                        <div className="space-y-4">
+                          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Suggested Folders</h2>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <AddActionCard 
+                              title="Create New Folder" 
+                              onClick={() => setOpenFolder(true)} 
+                              height="h-[200px]"
+                              className="rounded-xl"
                             />
-                          ))}
+                            {suggestedFolders.map(folder => (
+                              <FolderCard
+                                key={folder.id}
+                                folderId={folder.id}
+                                title={folder.name}
+                                items={folder.item_count || 0}
+                                contributors={folder.contributors}
+                                view="grid"
+                                isSelected={selectedIds.includes(String(folder.id))}
+                                onSelect={(e) => handleSelect(e, String(folder.id), [...folders, ...files])}
+                                onOpen={() => handleOpenFolder(folder.id, folder.name)}
+                                onDownload={() => handleAction('download', { ...folder, kind: 'folder' })}
+                                onDelete={() => handleAction('delete', { ...folder, kind: 'folder' })}
+                                onRename={() => { setItemToRename({ ...folder, id: String(folder.id), kind: 'folder' }); setRenameModalOpen(true); }}
+                                onContextMenu={(e) => setContextMenu({ x: e.clientX, y: e.clientY, item: { ...folder, id: String(folder.id), kind: 'folder' } })}
+                                canEdit={canEditResource(folder)}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    <div className="h-px w-full bg-border/50" />
+                    {(getProcessedItems(folders, 'folder').length > 0 || typeFilter === 'all' || typeFilter === 'folder') && (getProcessedItems(documents, 'document').length > 0 || typeFilter === 'all' || typeFilter === 'wiki_docs' || typeFilter !== 'all') && (
+                      <div className="h-px w-full bg-border/50" />
+                    )}
 
                     {/* Documents Section (at Root) */}
-                    {getProcessedItems(documents, 'document').length > 0 && (
+                    {(getProcessedItems(documents, 'document').length > 0 || typeFilter === 'all' || typeFilter === 'wiki_docs') && (
                       <div className="space-y-4 pt-4">
                         <div className="flex items-center justify-between group">
                           <button
@@ -761,10 +790,15 @@ function WikiPageContent() {
                           </button>
                         </div>
 
-                        {suggestedFiles.length > 0 && (
-                          <div className="space-y-4">
-                            <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Suggested Files</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-4">
+                          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Suggested Files</h2>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                              <AddActionCard 
+                                title="Upload New Document" 
+                                onClick={() => setOpen(true)} 
+                                height="h-[260px]"
+                                className="rounded-[24px]"
+                              />
                               {suggestedFiles.map(doc => (
                                 <DocumentCard
                                   key={doc.id}
@@ -780,10 +814,9 @@ function WikiPageContent() {
                                   onContextMenu={(e) => setContextMenu({ x: e.clientX, y: e.clientY, item: { ...doc, id: String(doc.id), kind: 'document' } })}
                                   canEdit={canEditResource(doc)}
                                 />
-                              ))}
-                            </div>
+                            ))}
                           </div>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -792,7 +825,6 @@ function WikiPageContent() {
                 {/* Main Content Area (Shown when in a Folder and Not Filtering) */}
                 {currentFolderId && !isFiltered && (
                   <div className="space-y-4">
-                    {/* Folders & Files Section */}
                     {(!isFiltered || typeFilter === 'folder' || typeFilter === 'all') && (
                       <>
                         {currentFolderId === null && (
@@ -833,10 +865,13 @@ function WikiPageContent() {
                         selectedIds={selectedIds}
                         onSelectionChange={setSelectedIds}
                         onContextMenu={(e, item) => setContextMenu({ x: e.clientX, y: e.clientY, item })}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        onSort={handleToggleSort}
                         sections={[{
                           label: "Folders & Files",
                           count: folders.length + files.length,
-                          items: [
+                          items: sortItems([
                             ...((!isFiltered || typeFilter === 'folder' || typeFilter === 'all') ? getProcessedItems(folders, 'folder').map(folder => {
                               const stats = getFolderStats(folder.id);
                               return {
@@ -854,6 +889,7 @@ function WikiPageContent() {
                                 onDownload: () => handleAction('download', {...folder, kind: 'folder'}),
                                 onDelete: () => handleAction('delete', {...folder, kind: 'folder'}),
                                 onRename: () => { setItemToRename({...folder, id: String(folder.id), kind: 'folder'}); setRenameModalOpen(true); },
+                                location: isFiltered ? (folder.parent?.name ? { id: folder.parent.id, name: folder.parent.name } : { id: "root", name: "Root" }) : undefined
                               };
                             }) : []),
                             ...getProcessedItems(files, 'file').map(file => {
@@ -871,11 +907,27 @@ function WikiPageContent() {
                                 members: file.uploaded_by_user ? [file.uploaded_by_user] : [],
                                 onRename: () => { setItemToRename({...file, id: String(file.id), kind: 'file'}); setRenameModalOpen(true); },
                                 onDownload: () => handleAction('download', {...file, kind: 'file'}),
-                                location: folderName ? { id: file.folder?.id || "", name: folderName } : undefined,
+                                location: isFiltered ? (folderName ? { id: file.folder?.id || "", name: folderName } : { id: "root", name: "Root" }) : undefined,
                                 onOpen: file.folder ? () => handleOpenFolder(file.folder!.id, file.folder!.name) : undefined,
                               };
                             }),
-                          ],
+                            ...getProcessedItems(documents, 'document').map(doc => ({
+                              id: String(doc.id),
+                              kind: "document" as const,
+                              name: doc.title,
+                              modifiedAt: doc.time,
+                              size: doc.size,
+                              owner: doc.author,
+                              isSelected: selectedIds.includes(String(doc.id)),
+                              onSelect: (e: any) => handleSelect(e, String(doc.id), documents),
+                              members: doc.author ? [doc.author] : [],
+                              url: doc.image,
+                              onDownload: () => handleAction('download', { ...doc, kind: 'document' }),
+                              onRename: () => { setItemToRename({ ...doc, kind: 'document' }); setRenameModalOpen(true); },
+                              location: doc.folder ? { id: doc.folder.id, name: doc.folder.name } : undefined,
+                              onOpen: doc.folder ? () => handleOpenFolder(doc.folder!.id, doc.folder!.name) : undefined,
+                            })),
+                          ]),
                         }]}
                       />
                     )}

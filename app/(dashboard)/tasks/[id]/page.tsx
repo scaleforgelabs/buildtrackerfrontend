@@ -35,6 +35,8 @@ import DeleteTaskModal from '@/app/components/tasks/modals/DeleteTaskModal'
 import toast from 'react-hot-toast'
 import EmojiPicker from 'emoji-picker-react'
 import CommentEditor from '@/app/components/ui/CommentEditor'
+import ImagePreviewModal from '@/app/components/ui/ImagePreviewModal'
+import { getFileIcon, triggerAuthenticatedDownload } from '@/libs/utils'
 
 const formatBytes = (bytes: number, decimals = 2) => {
     if (!+bytes) return '0 Bytes'
@@ -83,6 +85,9 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
     const [commentAttachments, setCommentAttachments] = useState<FileWithProgress[]>([])
     const [commentError, setCommentError] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Image Preview State
+    const [previewImage, setPreviewImage] = useState<{ url: string; name: string; id: string; isComment?: boolean } | null>(null)
 
     // Blockers State
     const [hasBlocker, setHasBlocker] = useState(false)
@@ -185,6 +190,20 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
             setSubmittingBlocker(false)
         }
     }
+
+    const handleDownload = async (attachmentId: string, filename: string, isComment: boolean = false) => {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const url = isComment 
+            ? `${baseUrl}/tasks/${workspaceId}/tasks/comments/attachments/${attachmentId}/download/`
+            : `${baseUrl}/tasks/${workspaceId}/tasks/attachments/${attachmentId}/download/`;
+        
+        try {
+            await triggerAuthenticatedDownload(url, filename);
+        } catch (error) {
+            console.error("Download failed", error);
+            toast.error("Failed to download file.");
+        }
+    };
 
     if (!workspaceId) {
         return (
@@ -364,8 +383,14 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
                                 const ext = attachment.file_name?.split('.').pop()?.toUpperCase() || 'FILE'
                                 return (
                                     <div key={attachment.id || index} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 hover:bg-gray-50 transition-colors">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-500 shrink-0">
-                                            <span className="text-[10px] font-bold">{ext.slice(0, 4)}</span>
+                                        <div className="flex h-10 w-10 items-center justify-center shrink-0">
+                                            {attachment.file_url || attachment.file ? (
+                                                <button type="button" onClick={() => setPreviewImage({ url: attachment.file_url || attachment.file, name: attachment.file_name || 'Image', id: attachment.id })} className="cursor-pointer">
+                                                    <img src={attachment.file_url || attachment.file} alt="Preview" className="h-10 w-10 object-cover rounded-lg border border-gray-100 hover:ring-2 hover:ring-primary/40 transition-all" />
+                                                </button>
+                                            ) : (
+                                                <img width="40" height="40" src={getFileIcon(attachment.file_name || attachment.file)} alt="File" className="object-contain" />
+                                            )}
                                         </div>
                                         <div className="flex-1 overflow-hidden">
                                             <p className="truncate text-sm font-medium text-gray-900" title={attachment.file_name}>
@@ -374,7 +399,7 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
                                             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-gray-500">
                                                 <span>{attachment.size ? `${(attachment.size / 1024).toFixed(1)} KB` : 'Attached file'}</span>
                                                 <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                                                <a href={attachment.file} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline transition-all">Download</a>
+                                                <button onClick={() => handleDownload(attachment.id, attachment.file_name || 'download')} className="font-medium text-primary hover:underline transition-all">Download</button>
                                             </div>
                                         </div>
                                     </div>
@@ -509,27 +534,24 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
                                                                 const isImage = fileUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i);
                                                                 if (isImage) {
                                                                     return (
-                                                                        <a key={att.id} href={fileUrl} target="_blank" rel="noopener noreferrer" className="block w-full max-w-md overflow-hidden rounded-xl border-[4px] border-black hover:opacity-90 transition-opacity">
+                                                                        <button type="button" onClick={() => setPreviewImage({ url: fileUrl, name: att.file_name || 'Image', id: att.id, isComment: true })} key={att.id} className="block w-full max-w-md overflow-hidden rounded-xl border-[4px] border-black hover:opacity-90 transition-opacity cursor-pointer">
                                                                             <img src={fileUrl} alt={att.file_name || 'Attachment'} className="h-auto w-full object-cover max-h-80" />
-                                                                        </a>
+                                                                        </button>
                                                                     )
                                                                 }
                                                                 return (
-                                                                    <a
+                                                                    <button
+                                                                        type="button"
                                                                         key={att.id}
-                                                                        href={fileUrl}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 hover:bg-gray-50 transition-colors shadow-sm min-w-[240px] max-w-sm"
+                                                                        onClick={() => handleDownload(att.id, att.file_name || 'download', true)}
+                                                                        className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 hover:bg-gray-50 transition-colors shadow-sm min-w-[240px] max-w-sm text-left"
                                                                     >
-                                                                        <div className="flex items-center justify-center flex-shrink-0 h-10 w-8 rounded text-white font-bold bg-red-600 text-[10px]">
-                                                                            PDF
-                                                                        </div>
+                                                                        <img width="40" height="40" src={getFileIcon(att.file_name || att.file)} alt="File" className="object-contain shrink-0" />
                                                                         <div className="flex flex-col truncate">
                                                                             <span className="text-sm font-semibold text-gray-900 truncate">{att.file_name || 'Document'}</span>
-                                                                            <span className="text-xs font-semibold text-gray-500 mt-0.5">{formatBytes(att.file_size || 0)} . Download</span>
+                                                                            <span className="text-xs font-semibold text-gray-500 mt-0.5">{formatBytes(att.file_size || 0)} • Download</span>
                                                                         </div>
-                                                                    </a>
+                                                                    </button>
                                                                 )
                                                             })}
                                                         </div>
@@ -642,6 +664,14 @@ const TaskDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
                 onClose={() => setIsDeleteOpen(false)}
                 onTaskDeleted={() => router.push(`/tasks`)}
                 task={{ id: taskData.id, name: taskData.task_name }}
+            />
+
+            <ImagePreviewModal
+                isOpen={!!previewImage}
+                imageUrl={previewImage?.url || ''}
+                fileName={previewImage?.name}
+                onClose={() => setPreviewImage(null)}
+                onDownload={previewImage ? () => handleDownload(previewImage.id, previewImage.name, previewImage.isComment) : undefined}
             />
         </div>
     )

@@ -52,6 +52,9 @@ type WikiTableViewProps = {
   onSelectionChange?: (ids: string[]) => void;
   onContextMenu?: (e: React.MouseEvent, item: WikiTableItem) => void;
   onRenameSuccess?: () => void;
+  sortBy?: 'name' | 'size' | 'modified';
+  sortOrder?: 'asc' | 'desc';
+  onSort?: (column: 'name' | 'size' | 'modified') => void;
 };
 
 function ItemIcon({ item }: { item: WikiTableItem }) {
@@ -121,10 +124,11 @@ function MemberStack({ members }: { members?: { avatar?: string }[] }) {
 function TableRow({
   item,
   isSelected,
-  isRenaming: isRenamingProp,
+  isRenaming,
   onSelect,
   onContextMenu,
   onRenameSuccess,
+  showLocation,
 }: {
   item: WikiTableItem;
   isSelected: boolean;
@@ -132,9 +136,8 @@ function TableRow({
   onSelect: (e: React.MouseEvent | React.ChangeEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onRenameSuccess?: () => void;
+  showLocation?: boolean;
 }) {
-  // Removed inline rename logic to favor global Modal-based approach
-
   const ownerLabel = item.owner
     ? `${item.owner.first_name ?? ""} ${item.owner.last_name ?? ""}`.trim() ||
     item.owner.name ||
@@ -181,16 +184,20 @@ function TableRow({
         </div>
       </td>
 
-      {/* Location (Only shown during filtering) */}
-      {item.location && (
+      {/* Location */}
+      {showLocation && (
         <td className="px-3 md:px-4 py-3 text-xs md:text-sm text-primary hover:underline whitespace-nowrap hidden sm:table-cell">
-          <button 
-            onClick={(e) => { e.stopPropagation(); if (item.location?.id) item.onOpen?.(); }}
-            className="hover:underline flex items-center gap-1"
-          >
-            <Folder className="h-3 w-3" />
-            {item.location.name}
-          </button>
+          {item.location ? (
+            <button 
+              onClick={(e) => { e.stopPropagation(); if (item.location?.id) item.onOpen?.(); }}
+              className="hover:underline flex items-center gap-1"
+            >
+              <Folder className="h-3 w-3" />
+              {item.location.name}
+            </button>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
         </td>
       )}
 
@@ -258,6 +265,9 @@ function TableSection({
   onSelectionChange,
   onContextMenu,
   onRenameSuccess,
+  sortBy,
+  sortOrder,
+  onSort,
 }: {
   section: WikiTableSection;
   showMoreCount?: number;
@@ -266,12 +276,21 @@ function TableSection({
   onSelectionChange?: (ids: string[]) => void;
   onContextMenu?: (e: React.MouseEvent, item: WikiTableItem) => void;
   onRenameSuccess?: () => void;
+  sortBy?: 'name' | 'size' | 'modified';
+  sortOrder?: 'asc' | 'desc';
+  onSort?: (column: 'name' | 'size' | 'modified') => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded
     ? section.items
     : section.items.slice(0, showMoreCount);
   const hasMore = section.items.length > showMoreCount;
+  const sectionHasLocation = section.items.some(i => !!i.location);
+
+  const SortIndicator = ({ column }: { column: 'name' | 'size' | 'modified' }) => {
+    if (sortBy !== column) return null;
+    return <span className="ml-1 text-primary">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
+  };
 
   return (
     <div className="space-y-0">
@@ -294,19 +313,34 @@ function TableSection({
                   className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                 />
               </th>
-              <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap truncate">
-                Name
+              <th className="px-3 md:px-4 py-3 text-left">
+                <button 
+                  onClick={() => onSort?.('name')}
+                  className="flex items-center text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap overflow-hidden hover:text-primary transition-colors pl-[32px] ml-2 md:pl-[32px] md:ml-3"
+                >
+                  Name <SortIndicator column="name" />
+                </button>
               </th>
-              {section.items.some(i => !!i.location) && (
+              {sectionHasLocation && (
                 <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden sm:table-cell">
-                  Location
+                  <div className="pl-[12px] ml-1">Location</div>
                 </th>
               )}
-              <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden md:table-cell">
-                Last modified
+              <th className="px-3 md:px-4 py-3 text-left hidden md:table-cell">
+                <button 
+                  onClick={() => onSort?.('modified')}
+                  className="flex items-center text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hover:text-primary transition-colors"
+                >
+                  Last modified <SortIndicator column="modified" />
+                </button>
               </th>
-              <th className="px-3 md:px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden lg:table-cell pr-12">
-                Size
+              <th className="px-3 md:px-4 py-3 text-right hidden lg:table-cell pr-12">
+                <button 
+                  onClick={() => onSort?.('size')}
+                  className="flex items-center justify-end w-full text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hover:text-primary transition-colors"
+                >
+                  Size <SortIndicator column="size" />
+                </button>
               </th>
               <th className="px-3 md:px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap hidden xl:table-cell">
                 Owner
@@ -343,6 +377,7 @@ function TableSection({
                   onContextMenu?.(e, item);
                 }}
                 onRenameSuccess={onRenameSuccess}
+                showLocation={sectionHasLocation}
               />
             ))}
           </tbody>
@@ -370,6 +405,9 @@ export function WikiTableView({
   onSelectionChange,
   onContextMenu,
   onRenameSuccess,
+  sortBy,
+  sortOrder,
+  onSort,
 }: WikiTableViewProps) {
   return (
     <div className="space-y-8">
@@ -382,6 +420,9 @@ export function WikiTableView({
           onSelectionChange={onSelectionChange}
           onContextMenu={onContextMenu}
           onRenameSuccess={onRenameSuccess}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={onSort}
         />
       ))}
     </div>

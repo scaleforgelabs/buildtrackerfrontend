@@ -120,7 +120,7 @@ function DashboardSkeleton() {
 
 export default function DashboardSection() {
   const { currentWorkspace } = useWorkspace();
-  const [timeFilter, setTimeFilter] = useState<"7d" | "30d" | "3m" | "all">("7d");
+  const [timeFilter, setTimeFilter] = useState<"7d" | "30d" | "3m" | "all">("30d");
   const pathname = usePathname();
   const isRouteActive = pathname.endsWith('/home') || pathname.match(/\/[a-zA-Z0-9-]+\/?$/) !== null;
 

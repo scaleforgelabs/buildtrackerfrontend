@@ -27,6 +27,8 @@ interface Notification {
     is_read: boolean;
     created_at: string;
     read_at: string | null;
+    triggered_by_avatar: string | null;
+    triggered_by_name: string | null;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -204,8 +206,8 @@ export default function NotificationsPage() {
                             <div className="flex-shrink-0">
                                 <div className="w-10 h-10 relative rounded-full overflow-hidden border border-border">
                                     <Image
-                                        src={Images.user}
-                                        alt="User"
+                                        src={notification.triggered_by_avatar || Images.user}
+                                        alt={notification.triggered_by_name || "User"}
                                         fill
                                         className="object-cover"
                                     />
